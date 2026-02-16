@@ -206,8 +206,9 @@ function getNextSequenceResponse(dateYyyymmdd, params) {
       var id = String(idColumn[i][0] || "").trim();
       if (id.indexOf(prefix) === 0) {
         var parts = id.split("-");
-        if (parts.length === 4) {
-          var seq = parseInt(parts[3], 10);
+        var seqPart = parts.length === 4 ? parts[3] : parts.length === 3 ? parts[2] : null;
+        if (seqPart != null) {
+          var seq = parseInt(seqPart, 10);
           if (!isNaN(seq)) maxSeq = Math.max(maxSeq, seq);
         }
       }

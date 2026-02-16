@@ -129,7 +129,154 @@ select { cursor: pointer; }
 .modal-close { background: none; border: none; font-size: 1.3rem; cursor: pointer; color: var(--muted); }
 .modal-close:hover { color: var(--text); }
 
-#pdf-preview { padding: 28px 32px; overflow-x: auto; }
+#pdf-preview { 
+  padding: 20px; 
+  overflow-x: auto; 
+  overflow-y: auto; 
+  max-height: 70vh;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+/* Slip preview in modal — matches printable slip layout exactly */
+#pdf-preview .slip-card {
+  border: 2px solid #000;
+  border-radius: 0;
+  padding: 0 4mm 3mm;
+  width: 148.5mm;
+  max-width: 100%;
+  margin: 0 auto;
+  font-family: Arial, Helvetica, sans-serif;
+  color: #000;
+  background: #fff;
+  overflow: hidden;
+  box-sizing: border-box;
+  transform: scale(0.8);
+  transform-origin: top center;
+}
+#pdf-preview .slip-header {
+  margin: 0 -4mm 0;
+  padding: 0;
+  border-bottom: 1.5px solid #000;
+  line-height: 0;
+  border-radius: 0;
+}
+#pdf-preview .slip-header-img {
+  width: 100%;
+  height: auto;
+  display: block;
+  object-fit: cover;
+  object-position: top center;
+  image-rendering: auto;
+  image-rendering: high-quality;
+}
+#pdf-preview .slip-title {
+  font-size: 10pt;
+  font-weight: 800;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  padding: 2mm 0 2.5mm;
+  margin: 0 -4mm 1.5mm;
+  border-bottom: 1.5px solid #000;
+  white-space: nowrap;
+}
+#pdf-preview .slip-body {
+  margin-bottom: 0;
+}
+#pdf-preview .slip-field {
+  display: flex;
+  align-items: flex-end;
+  margin-bottom: 1.5mm;
+  gap: 1mm;
+  page-break-inside: avoid;
+}
+#pdf-preview .slip-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 8pt;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  width: 32mm;
+  min-width: 32mm;
+  flex-shrink: 0;
+  padding-bottom: 0.5px;
+  line-height: 1.15;
+}
+#pdf-preview .slip-label-text {
+  text-align: left;
+}
+#pdf-preview .slip-label-colon {
+  flex-shrink: 0;
+  margin-left: 2mm;
+}
+#pdf-preview .slip-value {
+  flex: 1;
+  font-size: 8pt;
+  border-bottom: 1px solid #000;
+  padding-bottom: 0.5px;
+  padding-left: 1mm;
+  min-height: 9pt;
+  line-height: 1.15;
+  word-break: break-word;
+}
+#pdf-preview .slip-row-2 {
+  display: flex;
+  gap: 6mm;
+  margin-bottom: 1.5mm;
+  align-items: flex-end;
+}
+#pdf-preview .slip-row-2 .slip-field {
+  flex: 0 1 auto;
+  margin-bottom: 0;
+  min-width: 0;
+}
+#pdf-preview .slip-row-2 .slip-label {
+  width: 18mm;
+  min-width: 18mm;
+}
+#pdf-preview .slip-row-2 .slip-label-colon {
+  margin-left: 1mm;
+}
+#pdf-preview .slip-row-2 .slip-value {
+  width: 28mm;
+  max-width: 28mm;
+  flex: none;
+}
+#pdf-preview .slip-row-last {
+  margin-bottom: 0;
+}
+#pdf-preview .slip-signature {
+  margin-top: 4%;
+  padding-top: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+#pdf-preview .slip-signature-inner {
+  width: 50mm;
+  margin-left: auto;
+  margin-right: auto;
+}
+#pdf-preview .slip-signature-line {
+  border-bottom: 1px solid #000;
+  font-size: 8pt;
+  text-align: center;
+  padding-bottom: 0;
+  line-height: 1;
+}
+#pdf-preview .slip-signature-label {
+  font-size: 7pt;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #333;
+  margin-top: 0;
+  line-height: 1.1;
+}
 .preview-doc-header { text-align: center; margin-bottom: 20px; padding-bottom: 14px; border-bottom: 2px solid var(--accent); }
 .preview-doc-header h2 { font-family: 'Playfair Display', serif; font-size: 1.15rem; color: var(--accent); }
 .preview-doc-header p { font-size: 0.78rem; color: var(--muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.06em; }
@@ -156,36 +303,61 @@ select { cursor: pointer; }
 /* ===========================================
    PRINT STYLES — slip layout like a visitor pass
    Only #printable-area is shown when printing.
+   Receipt size: A4 cut crosswise, inserted portrait (148.5mm x 210mm)
    =========================================== */
 @media print {
-  @page { margin: 8mm; size: A5 portrait; }
+  @page { 
+    margin: 0; 
+    size: A4; /* Standard A4 size (210mm x 297mm) */
+  }
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+  body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+  }
   body > * { display: none !important; }
 
   #printable-area {
     display: block !important;
     width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
     font-family: Arial, Helvetica, sans-serif;
     color: #000;
     background: #fff;
+    position: absolute;
+    top: 0;
+    left: 0;
   }
 
-  /* Outer card — compact, like visitor slip */
+  /* Outer card — positioned in upper portion of A4 page */
   .slip-card {
     border: 2px solid #000;
-    border-radius: 4px;
-    padding: 0 8mm 5mm;
-    width: 100%;
+    border-radius: 0;
+    padding: 0 4mm 3mm;
+    width: 148.5mm;
     max-width: 100%;
+    height: auto;
+    margin: 0 auto;
+    margin-top: 20mm;
     overflow: hidden;
+    box-sizing: border-box;
   }
 
   /* Header: full-width image extending to border, no side gaps */
   .slip-header {
-    margin: 0 -8mm 0;
+    margin: 0 -4mm 0;
     padding: 0;
     border-bottom: 1.5px solid #000;
     line-height: 0;
-    border-radius: 2px 2px 0 0;
+    border-radius: 0;
   }
   .slip-header-img {
     width: 100%;
@@ -199,14 +371,14 @@ select { cursor: pointer; }
 
   /* "ASSISTANCE TO INDIVIDUALS IN CRISIS SITUATIONS" — single line, full width */
   .slip-title {
-    font-size: 11pt;
+    font-size: 10pt;
     font-weight: 800;
     text-align: center;
     text-transform: uppercase;
     letter-spacing: -0.02em;
     line-height: 1.2;
-    padding: 2mm 0 3mm;
-    margin: 0 -8mm 1.5mm;
+    padding: 2mm 0 2.5mm;
+    margin: 0 -4mm 1.5mm;
     border-bottom: 1.5px solid #000;
     white-space: nowrap;
   }
@@ -258,7 +430,7 @@ select { cursor: pointer; }
   /* Code + Remark: 8pt, compact spacing */
   .slip-row-2 {
     display: flex;
-    gap: 8mm;
+    gap: 6mm;
     margin-bottom: 1.5mm;
     align-items: flex-end;
   }
@@ -285,7 +457,7 @@ select { cursor: pointer; }
 
   /* Signature: name ON the underline, label below */
   .slip-signature {
-    margin-top: 6%;
+    margin-top: 4%;
     padding-top: 0;
     width: 100%;
     box-sizing: border-box;

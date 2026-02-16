@@ -183,19 +183,15 @@ function closeCooldownWarningModal() {
 }
 
 /**
- * Generates a transaction number: AICS-YYYYMMDD-XX-NNN
+ * Generates a transaction number: AICS-YYYYMMDD-NNN
  * - AICS = prefix
  * - YYYYMMDD = form date (sortable)
- * - XX = 2-letter type code (MA, BU, DI, CH, ME)
  * - NNN = 3-digit daily sequence (per date)
  * @param {number} [overrideSeq] - If provided, use this as the sequence (e.g. from sheet); otherwise use localStorage.
  */
 function generateTransactionNumber(overrideSeq) {
   var dateInput = document.getElementById("date");
-  var typeSelect = document.getElementById("typeOfAssistance");
   var dateStr = dateInput && dateInput.value ? dateInput.value : "";
-  var typeVal = typeSelect && typeSelect.value ? typeSelect.value : "";
-  var typeCode = TYPE_CODES[typeVal] || "GE";
   if (!dateStr) {
     var today = new Date();
     dateStr = today.getFullYear() + "-" + String(today.getMonth() + 1).padStart(2, "0") + "-" + String(today.getDate()).padStart(2, "0");
@@ -210,7 +206,7 @@ function generateTransactionNumber(overrideSeq) {
     localStorage.setItem(storageKey, String(seq));
   }
   var seqStr = String(seq).padStart(3, "0");
-  return "AICS-" + yyyymmdd + "-" + typeCode + "-" + seqStr;
+  return "AICS-" + yyyymmdd + "-" + seqStr;
 }
 
 /**
@@ -237,17 +233,16 @@ function updateTransactionNumber() {
   });
 }
 
-/** Updates only the type code (XX) in the current transaction number without changing sequence. */
-function setTransactionNumberTypeCode(typeCode) {
+/** Normalizes transaction number to 3-part format (AICS-YYYYMMDD-NNN), stripping any type code if present. */
+function setTransactionNumberTypeCode() {
   var el = document.getElementById("idNumber");
   if (!el || !el.value) return;
   var parts = el.value.split("-");
-  if (parts.length === 4) {
-    parts[2] = typeCode;
-    var value = parts.join("-");
-    el.value = value;
-    localStorage.setItem(STORAGE_KEY_TXN, value);
-  }
+  var seq = parts.length === 4 ? parts[3] : parts.length === 3 ? parts[2] : null;
+  if (seq == null) return;
+  var value = "AICS-" + parts[1] + "-" + seq;
+  el.value = value;
+  localStorage.setItem(STORAGE_KEY_TXN, value);
 }
 
 function getFormData() {
@@ -300,30 +295,8 @@ function sendToSheet(data) {
   });
 }
 
-/* ── Modal preview: table layout (for on-screen reference) ── */
-function buildPreview(data) {
-  var headers = COLUMNS.map(function(c) { return "<th>" + c.label + "</th>"; }).join("");
-  var cells   = COLUMNS.map(function(c) { return "<td>" + getCellValue(c, data) + "</td>"; }).join("");
-  var today   = new Date().toLocaleDateString("en-PH", { year:"numeric", month:"long", day:"numeric" });
-  document.getElementById("pdf-preview").innerHTML =
-    "<div class='preview-doc-header'>" +
-      "<h2>Social Welfare &amp; Development Office</h2>" +
-      "<p>Assistance Record</p>" +
-    "</div>" +
-    "<table class='preview-table'>" +
-      "<thead><tr>" + headers + "</tr></thead>" +
-      "<tbody><tr>" + cells   + "</tr></tbody>" +
-    "</table>" +
-    "<div class='preview-footer'>" +
-      "<span>Date Generated: " + today + "</span>" +
-      "<span>This document is system-generated.</span>" +
-    "</div>";
-}
-
-/* ── Slip layout: built for @media print ── */
-function buildPrintArea(data) {
-  var today = new Date().toLocaleDateString("en-PH", { year:"numeric", month:"long", day:"numeric" });
-
+/** Returns the printable slip HTML (used for both modal preview and print). */
+function getSlipHtml(data) {
   function field(labelText, value) {
     return "<div class='slip-field'>" +
       "<span class='slip-label'>" +
@@ -335,37 +308,44 @@ function buildPrintArea(data) {
   }
 
   var headerImg = "images/NewHeader.jpg";
-  document.getElementById("printable-area").innerHTML =
-    "<div class='slip-card'>" +
-      "<div class='slip-header'>" +
-        "<img class='slip-header-img' src='" + headerImg + "' alt='Municipality of Oton' />" +
+  return "<div class='slip-card'>" +
+    "<div class='slip-header'>" +
+      "<img class='slip-header-img' src='" + headerImg + "' alt='Municipality of Oton' />" +
+    "</div>" +
+    "<div class='slip-title'>Assistance to Individuals in Crisis Situations</div>" +
+    "<div class='slip-body'>" +
+      field("Code", data.code || "") +
+      field("Transaction No.", data.idNumber) +
+      field("Date", formatDate(data.date)) +
+      field("Name of Patient", data.patientName) +
+      field("Address", data.address) +
+      field("Contact No.", data.contactNumber || "-") +
+      field("Type / Purpose", data.typeOfAssistance) +
+      field("Claimant", data.claimant) +
+      "<div class='slip-row-last'>" +
+        field("Remark", data.remark || "-") +
       "</div>" +
-      "<div class='slip-title'>Assistance to Individuals in Crisis Situations</div>" +
-
-      "<div class='slip-body'>" +
-        field("Code", data.code || "") +
-        field("Transaction No.", data.idNumber) +
-        field("Date", formatDate(data.date)) +
-        field("Name of Patient", data.patientName) +
-        field("Address", data.address) +
-        field("Contact No.", data.contactNumber || "-") +
-        field("Type / Purpose", data.typeOfAssistance) +
-        field("Claimant", data.claimant) +
-        "<div class='slip-row-last'>" +
-          field("Remark", data.remark || "-") +
-        "</div>" +
+    "</div>" +
+    "<div class='slip-signature'>" +
+      "<div class='slip-signature-inner'>" +
+        "<div class='slip-signature-line'>" + (data.claimant || "") + "</div>" +
+        "<div class='slip-signature-label'>Signature Over Printed Name</div>" +
       "</div>" +
-
-      "<div class='slip-signature'>" +
-        "<div class='slip-signature-inner'>" +
-          "<div class='slip-signature-line'>" + (data.claimant || "") + "</div>" +
-          "<div class='slip-signature-label'>Signature Over Printed Name</div>" +
-        "</div>" +
-      "</div>" +
-    "</div>";
+    "</div>" +
+  "</div>";
 }
 
-/* ── Download PDF (landscape table format) ── */
+/* ── Modal preview: show printable slip (same as print) ── */
+function buildPreview(data) {
+  document.getElementById("pdf-preview").innerHTML = getSlipHtml(data);
+}
+
+/* ── Slip layout for @media print ── */
+function buildPrintArea(data) {
+  document.getElementById("printable-area").innerHTML = getSlipHtml(data);
+}
+
+/* ── Download PDF: page 1 = table form, page 2 = printable slip (backup) ── */
 function downloadAsPDF(data) {
   var jsPDF = window.jspdf.jsPDF;
   var doc = new jsPDF({ unit: "mm", format: "a4", orientation: "landscape" });
@@ -375,6 +355,7 @@ function downloadAsPDF(data) {
   var colW = usableW / COLUMNS.length;
   var y = 18;
 
+  /* ── Page 1: Table form ── */
   doc.setFont("times", "bold"); doc.setFontSize(14); doc.setTextColor(26, 58, 42);
   doc.text("Social Welfare & Development Office", pageW / 2, y, { align: "center" });
   y += 6;
@@ -386,33 +367,102 @@ function downloadAsPDF(data) {
 
   var headerH = 9;
   doc.setFillColor(26, 58, 42); doc.rect(margin, y, usableW, headerH, "F");
-  doc.setTextColor(255,255,255); doc.setFontSize(7); doc.setFont("helvetica","bold");
+  doc.setTextColor(255, 255, 255); doc.setFontSize(7); doc.setFont("helvetica", "bold");
   COLUMNS.forEach(function(col, i) {
     doc.text(col.label.toUpperCase(), margin + i * colW + colW / 2, y + 6, { align: "center" });
   });
   y += headerH;
 
   var dataH = 10;
-  doc.setFillColor(250,248,244); doc.rect(margin, y, usableW, dataH, "F");
-  doc.setTextColor(28,26,23); doc.setFontSize(8); doc.setFont("helvetica","normal");
+  doc.setFillColor(250, 248, 244); doc.rect(margin, y, usableW, dataH, "F");
+  doc.setTextColor(28, 26, 23); doc.setFontSize(8); doc.setFont("helvetica", "normal");
   COLUMNS.forEach(function(col, i) {
     var val = getCellValue(col, data);
     var x = margin + i * colW;
-    doc.setDrawColor(200,193,183); doc.setLineWidth(0.2); doc.rect(x, y, colW, dataH);
+    doc.setDrawColor(200, 193, 183); doc.setLineWidth(0.2); doc.rect(x, y, colW, dataH);
     var maxC = Math.floor(colW / 2.0);
     var display = val.length > maxC ? val.substring(0, maxC - 1) + "..." : val;
     doc.text(display, x + colW / 2, y + 6.5, { align: "center" });
   });
   y += dataH + 8;
 
-  doc.setDrawColor(26,58,42); doc.setLineWidth(0.3);
+  doc.setDrawColor(26, 58, 42); doc.setLineWidth(0.3);
   doc.line(margin, y, pageW - margin, y); y += 5;
-  doc.setFontSize(7.5); doc.setTextColor(100,92,80);
-  var today = new Date().toLocaleDateString("en-PH", { year:"numeric", month:"long", day:"numeric" });
+  doc.setFontSize(7.5); doc.setTextColor(100, 92, 80);
+  var today = new Date().toLocaleDateString("en-PH", { year: "numeric", month: "long", day: "numeric" });
   doc.text("Date Generated: " + today, margin, y);
   doc.text("This document is system-generated.", pageW - margin, y, { align: "right" });
 
-  doc.save("SWDO_" + data.idNumber.replace(/[^a-zA-Z0-9]/g,"_") + "_" + data.date + ".pdf");
+  /* ── Page 2: Printable slip (backup) ── */
+  doc.addPage("a5", "portrait");
+  pageW = doc.internal.pageSize.getWidth();
+  margin = 8;
+  var contentW = pageW - margin * 2;
+  y = margin;
+  var lineH = 5;
+  var labelW = 38;
+
+  doc.setDrawColor(0, 0, 0);
+  doc.setLineWidth(0.3);
+  doc.rect(margin, y, contentW, doc.internal.pageSize.getHeight() - margin * 2);
+  y += 4;
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.text("Republic of the Philippines", pageW / 2, y, { align: "center" });
+  y += 4;
+  doc.text("Province of Iloilo", pageW / 2, y, { align: "center" });
+  y += 4;
+  doc.text("Municipality of Oton", pageW / 2, y, { align: "center" });
+  y += 4;
+  doc.setFont("helvetica", "bold");
+  doc.text("OFFICE OF THE MAYOR", pageW / 2, y, { align: "center" });
+  y += 6;
+  doc.line(margin, y, pageW - margin, y);
+  y += 6;
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(10);
+  doc.text("ASSISTANCE TO INDIVIDUALS IN CRISIS SITUATIONS", pageW / 2, y, { align: "center" });
+  y += 6;
+  doc.line(margin, y, pageW - margin, y);
+  y += 5;
+
+  function slipLine(label, value) {
+    var val = (value !== undefined && value !== null && value !== "") ? String(value) : "";
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+    doc.text(label + ":", margin + 2, y + 3);
+    doc.setFont("helvetica", "normal");
+    doc.setDrawColor(0, 0, 0);
+    doc.setLineWidth(0.2);
+    doc.line(margin + labelW, y + 3.5, pageW - margin - 2, y + 3.5);
+    doc.text(val, margin + labelW + 2, y + 3);
+    y += lineH;
+  }
+
+  slipLine("Code", data.code);
+  slipLine("Transaction No.", data.idNumber);
+  slipLine("Date", formatDate(data.date));
+  slipLine("Name of Patient", data.patientName);
+  slipLine("Address", data.address);
+  slipLine("Contact No.", data.contactNumber || "-");
+  slipLine("Type / Purpose", data.typeOfAssistance);
+  slipLine("Claimant", data.claimant);
+  slipLine("Remark", data.remark || "-");
+  y += 3;
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.text(data.claimant || "", pageW / 2, y + 3, { align: "center" });
+  doc.line(margin + (contentW - 45) / 2, y + 5, pageW - margin - (contentW - 45) / 2, y + 5);
+  y += 6;
+  doc.setFontSize(6);
+  doc.setTextColor(80, 80, 80);
+  doc.text("Signature Over Printed Name", pageW / 2, y, { align: "center" });
+
+  doc.setTextColor(0, 0, 0);
+  doc.save("SWDO_" + data.idNumber.replace(/[^a-zA-Z0-9]/g, "_") + "_" + data.date + ".pdf");
 }
 
 /* FORM SUBMIT */
@@ -512,9 +562,7 @@ document.getElementById("date").addEventListener("change", function() {
 });
 
 document.getElementById("typeOfAssistance").addEventListener("change", function() {
-  var typeVal = this.value;
-  var typeCode = TYPE_CODES[typeVal] || "GE";
-  setTransactionNumberTypeCode(typeCode);
+  setTransactionNumberTypeCode();
   runEligibilityCheck();
 });
 
