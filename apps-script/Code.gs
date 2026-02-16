@@ -7,30 +7,27 @@ function getCooldownMonths(typeOfAssistance) {
 }
 
 /**
- * Check if patient can request again for this type.
- * Returns JSON(P): hasRecord, lastRequestDate, eligibleAgainDate, canRequest, message.
- * Query: ?action=checkEligibility&patientName=...&typeOfAssistance=...
+ * Compute eligibility for patient + type (cooldown). Returns payload object only.
+ * Used by getCheckEligibilityResponse and by doGet before appending a new row.
  */
-function getCheckEligibilityResponse(params) {
-  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+function getEligibilityPayload(sheet, patientName, typeOfAssistance) {
   var lastRow = sheet.getLastRow();
-  var patientName = (params.patientName || "").trim();
-  var typeOfAssistance = (params.typeOfAssistance || "").trim();
-
+  patientName = (patientName || "").trim();
+  typeOfAssistance = (typeOfAssistance || "").trim();
   var payload = { hasRecord: false, lastRequestDate: null, eligibleAgainDate: null, canRequest: true, message: "" };
 
   if (!patientName || !typeOfAssistance) {
     payload.message = "Patient name and type of assistance are required.";
-    return jsonResponse(payload, params);
+    return payload;
   }
 
   var cooldownMonths = getCooldownMonths(typeOfAssistance);
   if (cooldownMonths === null) {
     payload.message = "This type has no cooldown restriction.";
-    return jsonResponse(payload, params);
+    return payload;
   }
 
-  if (lastRow < 2) return jsonResponse(payload, params);
+  if (lastRow < 2) return payload;
 
   // Columns: A=ID, B=Date, C=Patient, ..., G=Type of Assistance
   var data = sheet.getRange(2, 1, lastRow, 7).getValues();
@@ -46,7 +43,7 @@ function getCheckEligibilityResponse(params) {
     if (!lastRequestDate || d > lastRequestDate) lastRequestDate = d;
   }
 
-  if (!lastRequestDate) return jsonResponse(payload, params);
+  if (!lastRequestDate) return payload;
 
   payload.hasRecord = true;
   var lastStr = formatDateForSheet(lastRequestDate);
@@ -64,8 +61,22 @@ function getCheckEligibilityResponse(params) {
   if (payload.canRequest) {
     payload.message = "A previous " + typeOfAssistance + " request was recorded. You may submit a new request (a new record will be created).";
   } else {
-    payload.message = "This patient already has a " + typeOfAssistance + " request on " + lastStr + ". They may request again on " + payload.eligibleAgainDate + ".";
+    payload.typeOfAssistance = typeOfAssistance;
+    payload.lastRequestDateReadable = formatDateReadable(lastRequestDate);
+    payload.eligibleAgainDateReadable = formatDateReadable(eligible);
+    payload.message = "This patient already has a " + typeOfAssistance + " request on " + payload.lastRequestDateReadable + ". They may request again on " + payload.eligibleAgainDateReadable + ".";
   }
+  return payload;
+}
+
+/**
+ * Check if patient can request again for this type.
+ * Returns JSON(P): hasRecord, lastRequestDate, eligibleAgainDate, canRequest, message.
+ * Query: ?action=checkEligibility&patientName=...&typeOfAssistance=...
+ */
+function getCheckEligibilityResponse(params) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  var payload = getEligibilityPayload(sheet, params.patientName, params.typeOfAssistance);
   return jsonResponse(payload, params);
 }
 
@@ -74,6 +85,13 @@ function formatDateForSheet(d) {
   var m = d.getMonth() + 1;
   var day = d.getDate();
   return y + "-" + (m < 10 ? "0" : "") + m + "-" + (day < 10 ? "0" : "") + day;
+}
+
+/** Format date for user-facing messages: "Month Day, Year" e.g. "August 17, 2026". */
+function formatDateReadable(d) {
+  if (!d || !(d instanceof Date) || isNaN(d.getTime())) return "";
+  var tz = Session.getScriptTimeZone() || "Asia/Manila";
+  return Utilities.formatDate(d, tz, "MMMM d, yyyy");
 }
 
 function jsonResponse(payload, params) {
@@ -101,6 +119,17 @@ function doGet(e) {
   }
 
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+
+  // Cooldown: for non-Burial types, block submission if patient is still in cooldown
+  var typeOfAssistance = (params.typeOfAssistance || "").trim();
+  if (typeOfAssistance !== "Burial") {
+    var eligibility = getEligibilityPayload(sheet, params.patientName, typeOfAssistance);
+    if (eligibility.hasRecord && !eligibility.canRequest) {
+      return ContentService
+        .createTextOutput(JSON.stringify({ status: "error", message: eligibility.message }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+  }
 
   // Build claimant full name from Last, First, Middle (same format as form)
   var last = (params.claimantLastName || "").trim();

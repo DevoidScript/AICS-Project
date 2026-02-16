@@ -126,6 +126,22 @@
 -->
 <div id="printable-area" style="display:none;"></div>
 
+<!-- Cooldown warning modal: same patient + type (except Burial) submitted too soon -->
+<div class="modal-overlay" id="cooldownWarningModal">
+  <div class="modal modal-warning">
+    <div class="modal-head modal-head-warning">
+      <h2>Cannot submit – cooldown period</h2>
+      <button type="button" class="modal-close" id="cooldownModalClose" aria-label="Close">&#x2715;</button>
+    </div>
+    <div class="modal-body">
+      <p class="cooldown-warning-text">This patient already has a <span id="cooldownType"></span> request on <span id="cooldownLastDate"></span>. They may request again on <span id="cooldownEligibleDate"></span>.</p>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-primary" id="cooldownModalOk">OK</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <script src="js/assistance-form.js"></script>

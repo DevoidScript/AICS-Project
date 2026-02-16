@@ -150,9 +150,36 @@ function showEligibilityMessage(result) {
     el.className = "eligibility-message";
     return;
   }
-  el.textContent = result.message;
+  // For cooldown warning, show dates as "Month Day, Year" using client-side formatting
+  var displayMessage = result.message;
+  if (result.hasRecord && !result.canRequest && result.lastRequestDate && result.eligibleAgainDate) {
+    var lastReadable = result.lastRequestDateReadable || formatDate(result.lastRequestDate);
+    var eligibleReadable = result.eligibleAgainDateReadable || formatDate(result.eligibleAgainDate);
+    var type = result.typeOfAssistance || "";
+    displayMessage = "This patient already has a " + type + " request on " + lastReadable + ". They may request again on " + eligibleReadable + ".";
+  }
+  el.textContent = displayMessage;
   el.className = "eligibility-message " + (result.canRequest ? "eligibility-ok" : "eligibility-warn");
   el.style.display = "block";
+}
+
+function showCooldownWarningModal(result) {
+  var modal = document.getElementById("cooldownWarningModal");
+  var typeEl = document.getElementById("cooldownType");
+  var lastEl = document.getElementById("cooldownLastDate");
+  var eligibleEl = document.getElementById("cooldownEligibleDate");
+  if (typeEl) typeEl.textContent = result.typeOfAssistance || "";
+  // Always show full month name and day, then year (e.g. "February 16, 2026")
+  var lastStr = result.lastRequestDateReadable || (result.lastRequestDate ? formatDate(result.lastRequestDate) : "");
+  var eligibleStr = result.eligibleAgainDateReadable || (result.eligibleAgainDate ? formatDate(result.eligibleAgainDate) : "");
+  if (lastEl) lastEl.textContent = lastStr;
+  if (eligibleEl) eligibleEl.textContent = eligibleStr;
+  if (modal) modal.classList.add("open");
+}
+
+function closeCooldownWarningModal() {
+  var modal = document.getElementById("cooldownWarningModal");
+  if (modal) modal.classList.remove("open");
 }
 
 /**
@@ -337,7 +364,7 @@ function buildPrintArea(data) {
 
       "<div class='slip-signature'>" +
         "<div class='slip-signature-inner'>" +
-          "<div class='slip-signature-line'></div>" +
+          "<div class='slip-signature-line'>" + (data.claimant || "") + "</div>" +
           "<div class='slip-signature-label'>Signature Over Printed Name</div>" +
         "</div>" +
       "</div>" +
@@ -410,7 +437,7 @@ document.getElementById("assistanceForm").addEventListener("submit", function(e)
       btn.textContent = "Submit & Preview";
       if (result.hasRecord && !result.canRequest) {
         showEligibilityMessage(result);
-        showToast(result.message, "error");
+        showCooldownWarningModal(result);
         return;
       }
       doSubmit(data);
@@ -462,6 +489,16 @@ document.getElementById("downloadPdf").addEventListener("click", function() {
 document.getElementById("pdfModal").addEventListener("click", function(e) {
   if (e.target === document.getElementById("pdfModal")) {
     document.getElementById("pdfModal").classList.remove("open");
+  }
+});
+
+["cooldownModalOk", "cooldownModalClose"].forEach(function(id) {
+  var el = document.getElementById(id);
+  if (el) el.addEventListener("click", closeCooldownWarningModal);
+});
+document.getElementById("cooldownWarningModal").addEventListener("click", function(e) {
+  if (e.target === document.getElementById("cooldownWarningModal")) {
+    closeCooldownWarningModal();
   }
 });
 
