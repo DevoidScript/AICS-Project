@@ -78,6 +78,27 @@ select { cursor: pointer; }
 .btn-primary:hover { background: var(--accent-light); }
 .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
 
+.eligibility-message {
+  margin-bottom: 20px;
+  padding: 12px 16px;
+  border-radius: var(--radius);
+  font-size: 0.9rem;
+  line-height: 1.4;
+  display: none;
+}
+.eligibility-message.eligibility-warn {
+  display: block;
+  background: rgba(139, 42, 42, 0.08);
+  border: 1px solid var(--danger);
+  color: #6b2020;
+}
+.eligibility-message.eligibility-ok {
+  display: block;
+  background: rgba(30, 94, 58, 0.08);
+  border: 1px solid var(--success);
+  color: #164a2a;
+}
+
 #toast {
   position: fixed; bottom: 28px; right: 28px;
   padding: 14px 22px; border-radius: var(--radius);
@@ -143,27 +164,28 @@ select { cursor: pointer; }
     background: #fff;
   }
 
-  /* Outer card border — like the visitor pass box */
+  /* Outer card — compact, like visitor slip */
   .slip-card {
-    border: 3px solid #000;
-    border-radius: 8px;
-    padding: 8mm 10mm 7mm;
+    border: 2px solid #000;
+    border-radius: 4px;
+    padding: 5mm 8mm 5mm;
     width: 100%;
+    max-width: 100%;
   }
 
-  /* Header: seal left, LGU text center */
+  /* Header: seal left, LGU text center — compact */
   .slip-header {
     display: flex;
     align-items: flex-start;
     justify-content: flex-start;
-    gap: 6mm;
-    margin-bottom: 6mm;
-    padding-bottom: 4mm;
-    border-bottom: 2px solid #000;
+    gap: 4mm;
+    margin-bottom: 3mm;
+    padding-bottom: 3mm;
+    border-bottom: 1.5px solid #000;
   }
   .slip-seal {
-    width: 22mm;
-    height: 22mm;
+    width: 18mm;
+    height: 18mm;
     object-fit: contain;
     flex-shrink: 0;
   }
@@ -172,70 +194,130 @@ select { cursor: pointer; }
     text-align: center;
   }
   .slip-org-line {
-    font-size: 11pt;
-    line-height: 1.35;
+    font-size: 8pt;
+    line-height: 1.25;
     color: #000;
+    font-weight: normal;
   }
   .slip-org-name {
+    font-weight: normal;
+    font-size: 8pt;
+    margin-top: 1px;
+  }
+  .slip-org-mayor {
     font-weight: 700;
-    font-size: 12pt;
-    margin-top: 2px;
+    font-size: 8.5pt;
+    margin-top: 4mm;
+    letter-spacing: 0.02em;
   }
 
-  /* "ASSISTANCE RECORD" bold title at top */
+  /* "ASSISTANCE TO INDIVIDUALS IN CRISIS SITUATIONS" — small, fits on two lines */
   .slip-title {
-    font-size: 20pt;
-    font-weight: 900;
+    font-size: 8pt;
+    font-weight: 700;
     text-align: center;
     text-transform: uppercase;
-    letter-spacing: 0.03em;
-    padding-bottom: 5mm;
-    margin-bottom: 6mm;
-    border-bottom: 2px solid #000;
+    letter-spacing: 0.02em;
+    line-height: 1.2;
+    padding-bottom: 1.5mm;
+    margin-bottom: 1.5mm;
+    border-bottom: 1.5px solid #000;
   }
 
-  /* Each field: LABEL ____filled value____ */
+  /* Body: label : value — 8pt, tighter spacing */
+  .slip-body {
+    margin-bottom: 0;
+  }
   .slip-field {
     display: flex;
-    align-items: baseline;
-    margin-bottom: 5mm;
-    gap: 3mm;
+    align-items: flex-end;
+    margin-bottom: 1.5mm;
+    gap: 1mm;
     page-break-inside: avoid;
   }
   .slip-label {
-    font-size: 10pt;
-    font-weight: 800;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 8pt;
+    font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.02em;
     white-space: nowrap;
-    min-width: 34mm;
+    width: 32mm;
+    min-width: 32mm;
+    flex-shrink: 0;
+    padding-bottom: 0.5px;
+    line-height: 1.15;
+  }
+  .slip-label-text {
+    text-align: left;
+  }
+  .slip-label-colon {
+    flex-shrink: 0;
+    margin-left: 2mm;
   }
   .slip-value {
     flex: 1;
-    font-size: 10pt;
-    border-bottom: 1.5px solid #000;
-    padding-bottom: 1px;
-    padding-left: 2mm;
-    min-height: 14pt;
+    font-size: 8pt;
+    border-bottom: 1px solid #000;
+    padding-bottom: 0.5px;
+    padding-left: 1mm;
+    min-height: 9pt;
+    line-height: 1.15;
     word-break: break-word;
   }
 
-  /* Date + Code on same line */
-  .slip-row {
+  /* Code + Remark: 8pt, compact spacing */
+  .slip-row-2 {
     display: flex;
-    gap: 5mm;
-    margin-bottom: 5mm;
+    gap: 8mm;
+    margin-bottom: 1.5mm;
+    align-items: flex-end;
   }
-  .slip-row .slip-field { flex: 1; margin-bottom: 0; }
-  .slip-row .slip-field:first-child .slip-label { min-width: 12mm; }
-  .slip-row .slip-field:last-child  .slip-label { min-width: 14mm; }
+  .slip-row-2 .slip-field {
+    flex: 0 1 auto;
+    margin-bottom: 0;
+    min-width: 0;
+  }
+  .slip-row-2 .slip-label {
+    width: 18mm;
+    min-width: 18mm;
+  }
+  .slip-row-2 .slip-label-colon {
+    margin-left: 1mm;
+  }
+  .slip-row-2 .slip-value {
+    width: 28mm;
+    max-width: 28mm;
+    flex: none;
+  }
+  .slip-row-last {
+    margin-bottom: 0;
+  }
 
-  .slip-footer {
-    margin-top: 6mm;
-    font-size: 7.5pt;
-    color: #666;
+  /* Signature: no line break, compact spacing, centered */
+  .slip-signature {
+    margin-top: 2mm;
+    padding-top: 0;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .slip-signature-inner {
+    width: 50mm;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .slip-signature-line {
+    border-bottom: 1px solid #000;
+    height: 5mm;
+    margin-bottom: 0.5mm;
+  }
+  .slip-signature-label {
+    font-size: 7pt;
     text-align: center;
-    border-top: 1px solid #bbb;
-    padding-top: 3mm;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: #333;
   }
 }

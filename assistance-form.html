@@ -13,8 +13,8 @@
 <header class="page-header">
   <div class="header-seal">&#x1F4CB;</div>
   <div class="header-text">
-    <h1>Assistance Record Entry</h1>
-    <p>Social Welfare &amp; Development Office</p>
+    <h1>ASSISTANCE TO INDIVIDUALS IN CRISIS SITUATIONS</h1>
+    <p>LGU OTON</p>
   </div>
 </header>
 
@@ -24,16 +24,16 @@
     <div class="section-label">Record Identification</div>
     <div class="form-grid three-col">
       <div class="field">
-        <label>ID Number <span class="req">*</span></label>
-        <input type="text" id="idNumber" placeholder="e.g. 2025-001" required />
+        <label>Transaction Number<span class="req">*</span></label>
+        <input type="text" id="idNumber" placeholder="Auto-generated" readonly required />
       </div>
       <div class="field">
         <label>Date <span class="req">*</span></label>
         <input type="date" id="date" required />
       </div>
       <div class="field">
-        <label>Code <span class="req">*</span></label>
-        <input type="text" id="code" placeholder="e.g. MED-01" required />
+        <label>Code</label>
+        <input type="text" id="code" placeholder="e.g. MED-01" />
       </div>
     </div>
 
@@ -47,9 +47,21 @@
         <label>Address <span class="req">*</span></label>
         <input type="text" id="address" placeholder="Complete address" required />
       </div>
-      <div class="field span-2">
-        <label>Claimant <span class="req">*</span></label>
-        <input type="text" id="claimant" placeholder="Name of claimant / representative" required />
+      <div class="field">
+        <label>Contact Number</label>
+        <input type="text" id="contactNumber" placeholder="e.g. 09XX XXX XXXX" />
+      </div>
+      <div class="field">
+        <label>Claimant – Last name <span class="req">*</span></label>
+        <input type="text" id="claimantLastName" placeholder="Last name" required />
+      </div>
+      <div class="field">
+        <label>Claimant – First name <span class="req">*</span></label>
+        <input type="text" id="claimantFirstName" placeholder="First name" required />
+      </div>
+      <div class="field">
+        <label>Claimant – Middle name / initial</label>
+        <input type="text" id="claimantMiddleName" placeholder="Optional" />
       </div>
     </div>
 
@@ -59,13 +71,11 @@
         <label>Type of Assistance <span class="req">*</span></label>
         <select id="typeOfAssistance" required>
           <option value="" disabled selected>Select type...</option>
-          <option>Burial Assistance</option>
-          <option>Medical Assistance</option>
-          <option>Financial Assistance</option>
-          <option>Educational Assistance</option>
-          <option>Food Assistance</option>
-          <option>Livelihood Assistance</option>
-          <option>Other</option>
+          <option>Maintenance</option>
+          <option>Burial</option>
+          <option>Dialysis</option>
+          <option>Chemotherapy</option>
+          <option>Medicine</option>
         </select>
       </div>
       <div class="field">
@@ -73,6 +83,8 @@
         <input type="text" id="remark" placeholder="Optional note" />
       </div>
     </div>
+
+    <div id="eligibilityMessage" class="eligibility-message" role="alert" aria-live="polite" style="display: none;"></div>
 
     <div class="section-label">Internal Use Only</div>
     <div class="form-grid">

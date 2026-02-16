@@ -1,14 +1,47 @@
 var APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbynmrEpTPH6xGGsQKVtRDi6zTKvXUE3WqmUVlXmAR0VF6Ne2LcqzGGeMzc2kSgrjVacnA/exec";
 
+var TYPE_CODES = {
+  "Maintenance": "MA",
+  "Burial": "BU",
+  "Dialysis": "DI",
+  "Chemotherapy": "CH",
+  "Medicine": "ME"
+};
+
+var STORAGE_KEY_TXN = "assistanceForm_currentTransactionNumber";
+
+function getStoredTransactionNumber() {
+  return localStorage.getItem(STORAGE_KEY_TXN) || "";
+}
+
+function setStoredTransactionNumber(value) {
+  var el = document.getElementById("idNumber");
+  if (el) el.value = value || "";
+  if (value) localStorage.setItem(STORAGE_KEY_TXN, value);
+}
+
+/** Clears all transaction-number state so the next generated number will be 001. */
+function resetTransactionNumberToFirst() {
+  var keys = [];
+  for (var i = 0; i < localStorage.length; i++) {
+    var k = localStorage.key(i);
+    if (k && (k === STORAGE_KEY_TXN || k.indexOf("assistanceForm_seq_") === 0)) keys.push(k);
+  }
+  keys.forEach(function(k) { localStorage.removeItem(k); });
+}
+
 var COLUMNS = [
-  { label: "ID Number",          key: "idNumber" },
-  { label: "Date",               key: "date",    useFormatDate: true },
-  { label: "Patient / Deceased", key: "patientName" },
-  { label: "Address",            key: "address" },
-  { label: "Claimant",           key: "claimant" },
-  { label: "Type of Assistance", key: "typeOfAssistance" },
-  { label: "Code",               key: "code" },
-  { label: "Remark",             key: "remark",  fallback: "-" }
+  { label: "ID Number",               key: "idNumber" },
+  { label: "Date",                    key: "date",    useFormatDate: true },
+  { label: "Patient / Deceased",      key: "patientName" },
+  { label: "Address",                 key: "address" },
+  { label: "Contact No.",              key: "contactNumber", fallback: "-" },
+  { label: "Claimant (Last)",         key: "claimantLastName" },
+  { label: "Claimant (First)",        key: "claimantFirstName" },
+  { label: "Claimant (Middle)",       key: "claimantMiddleName", fallback: "-" },
+  { label: "Type of Assistance",      key: "typeOfAssistance" },
+  { label: "Code",                    key: "code" },
+  { label: "Remark",                  key: "remark",  fallback: "-" }
 ];
 
 function showToast(msg, type) {
@@ -31,22 +64,189 @@ function getCellValue(col, data) {
   return val;
 }
 
+/**
+ * Fetches the next sequence number for the given date from the sheet (source of truth).
+ * Uses JSONP to avoid CORS when the form is on file:// or another domain.
+ * @param {string} yyyymmdd - Date as YYYYMMDD
+ * @returns {Promise<number|null>} Next sequence (1-based) or null on error
+ */
+function fetchNextSequenceFromSheet(yyyymmdd) {
+  return new Promise(function(resolve) {
+    var callbackName = "__aicsCb" + Date.now();
+    var timeout = setTimeout(function() {
+      if (window[callbackName]) {
+        window[callbackName] = null;
+        showToast("Could not load next number from sheet. Redeploy Apps Script (getNextSeq) and refresh.", "error");
+        resolve(null);
+      }
+    }, 12000);
+    window[callbackName] = function(data) {
+      clearTimeout(timeout);
+      window[callbackName] = null;
+      try { if (script.parentNode) document.body.removeChild(script); } catch (e) {}
+      resolve(typeof data === "object" && typeof data.nextSeq === "number" ? data.nextSeq : null);
+    };
+    var url = APPS_SCRIPT_URL + "?action=getNextSeq&date=" + encodeURIComponent(yyyymmdd) + "&callback=" + callbackName + "&_=" + Date.now();
+    var script = document.createElement("script");
+    script.src = url;
+    script.onerror = function() {
+      clearTimeout(timeout);
+      window[callbackName] = null;
+      try { if (script.parentNode) document.body.removeChild(script); } catch (e) {}
+      showToast("Could not load next number from sheet. Redeploy Apps Script (getNextSeq) and refresh.", "error");
+      resolve(null);
+    };
+    document.body.appendChild(script);
+  });
+}
+
+/** Cooldown types: Maintenance/Dialysis/Chemotherapy = 6 months, Medicine = 1 year. Burial has no cooldown. */
+var COOLDOWN_TYPES = { "Maintenance": true, "Dialysis": true, "Chemotherapy": true, "Medicine": true };
+
+/**
+ * Check eligibility for patient + type (cooldown). Returns Promise<{ hasRecord, lastRequestDate, eligibleAgainDate, canRequest, message }>.
+ */
+function checkEligibility(patientName, typeOfAssistance) {
+  return new Promise(function(resolve) {
+    patientName = (patientName || "").trim();
+    typeOfAssistance = (typeOfAssistance || "").trim();
+    if (!patientName || !typeOfAssistance || !COOLDOWN_TYPES[typeOfAssistance]) {
+      resolve({ hasRecord: false, canRequest: true, message: "" });
+      return;
+    }
+    var callbackName = "__aicsEligibility" + Date.now();
+    var timeout = setTimeout(function() {
+      if (window[callbackName]) {
+        window[callbackName] = null;
+        resolve({ hasRecord: false, canRequest: true, message: "" });
+      }
+    }, 10000);
+    window[callbackName] = function(data) {
+      clearTimeout(timeout);
+      window[callbackName] = null;
+      try { if (script.parentNode) document.body.removeChild(script); } catch (e) {}
+      resolve(typeof data === "object" ? data : { hasRecord: false, canRequest: true, message: "" });
+    };
+    var url = APPS_SCRIPT_URL + "?action=checkEligibility&patientName=" + encodeURIComponent(patientName) +
+      "&typeOfAssistance=" + encodeURIComponent(typeOfAssistance) + "&callback=" + callbackName + "&_=" + Date.now();
+    var script = document.createElement("script");
+    script.src = url;
+    script.onerror = function() {
+      clearTimeout(timeout);
+      window[callbackName] = null;
+      try { if (script.parentNode) document.body.removeChild(script); } catch (e) {}
+      resolve({ hasRecord: false, canRequest: true, message: "" });
+    };
+    document.body.appendChild(script);
+  });
+}
+
+function showEligibilityMessage(result) {
+  var el = document.getElementById("eligibilityMessage");
+  if (!el) return;
+  if (!result.message) {
+    el.style.display = "none";
+    el.textContent = "";
+    el.className = "eligibility-message";
+    return;
+  }
+  el.textContent = result.message;
+  el.className = "eligibility-message " + (result.canRequest ? "eligibility-ok" : "eligibility-warn");
+  el.style.display = "block";
+}
+
+/**
+ * Generates a transaction number: AICS-YYYYMMDD-XX-NNN
+ * - AICS = prefix
+ * - YYYYMMDD = form date (sortable)
+ * - XX = 2-letter type code (MA, BU, DI, CH, ME)
+ * - NNN = 3-digit daily sequence (per date)
+ * @param {number} [overrideSeq] - If provided, use this as the sequence (e.g. from sheet); otherwise use localStorage.
+ */
+function generateTransactionNumber(overrideSeq) {
+  var dateInput = document.getElementById("date");
+  var typeSelect = document.getElementById("typeOfAssistance");
+  var dateStr = dateInput && dateInput.value ? dateInput.value : "";
+  var typeVal = typeSelect && typeSelect.value ? typeSelect.value : "";
+  var typeCode = TYPE_CODES[typeVal] || "GE";
+  if (!dateStr) {
+    var today = new Date();
+    dateStr = today.getFullYear() + "-" + String(today.getMonth() + 1).padStart(2, "0") + "-" + String(today.getDate()).padStart(2, "0");
+  }
+  var yyyymmdd = dateStr.replace(/-/g, "");
+  var seq;
+  if (typeof overrideSeq === "number" && overrideSeq >= 1) {
+    seq = overrideSeq;
+  } else {
+    var storageKey = "assistanceForm_seq_" + yyyymmdd;
+    seq = parseInt(localStorage.getItem(storageKey) || "0", 10) + 1;
+    localStorage.setItem(storageKey, String(seq));
+  }
+  var seqStr = String(seq).padStart(3, "0");
+  return "AICS-" + yyyymmdd + "-" + typeCode + "-" + seqStr;
+}
+
+/**
+ * Fetches next sequence from sheet and updates the transaction number field.
+ * Falls back to localStorage-based generation if the request fails.
+ */
+function updateTransactionNumber() {
+  var dateInput = document.getElementById("date");
+  var dateStr = dateInput && dateInput.value ? dateInput.value : "";
+  if (!dateStr) {
+    var today = new Date();
+    dateStr = today.getFullYear() + "-" + String(today.getMonth() + 1).padStart(2, "0") + "-" + String(today.getDate()).padStart(2, "0");
+  }
+  var yyyymmdd = dateStr.replace(/-/g, "");
+  fetchNextSequenceFromSheet(yyyymmdd).then(function(nextSeq) {
+    var value;
+    if (nextSeq !== null) {
+      value = generateTransactionNumber(nextSeq);
+      localStorage.removeItem("assistanceForm_seq_" + yyyymmdd);
+    } else {
+      value = generateTransactionNumber();
+    }
+    setStoredTransactionNumber(value);
+  });
+}
+
+/** Updates only the type code (XX) in the current transaction number without changing sequence. */
+function setTransactionNumberTypeCode(typeCode) {
+  var el = document.getElementById("idNumber");
+  if (!el || !el.value) return;
+  var parts = el.value.split("-");
+  if (parts.length === 4) {
+    parts[2] = typeCode;
+    var value = parts.join("-");
+    el.value = value;
+    localStorage.setItem(STORAGE_KEY_TXN, value);
+  }
+}
+
 function getFormData() {
+  var last  = document.getElementById("claimantLastName").value.trim();
+  var first = document.getElementById("claimantFirstName").value.trim();
+  var mid   = document.getElementById("claimantMiddleName").value.trim();
+  var claimantFull = last + (first ? ", " + first : "") + (mid ? " " + mid : "");
   return {
-    idNumber:         document.getElementById("idNumber").value.trim(),
-    date:             document.getElementById("date").value,
-    patientName:      document.getElementById("patientName").value.trim(),
-    address:          document.getElementById("address").value.trim(),
-    claimant:         document.getElementById("claimant").value.trim(),
-    typeOfAssistance: document.getElementById("typeOfAssistance").value,
-    code:             document.getElementById("code").value.trim(),
-    remark:           document.getElementById("remark").value.trim(),
-    encodedBy:        document.getElementById("encodedBy").value.trim()
+    idNumber:             document.getElementById("idNumber").value.trim(),
+    date:                 document.getElementById("date").value,
+    patientName:          document.getElementById("patientName").value.trim(),
+    address:              document.getElementById("address").value.trim(),
+    claimantLastName:     last,
+    claimantFirstName:    first,
+    claimantMiddleName:   mid,
+    claimant:             claimantFull,
+    contactNumber:        (document.getElementById("contactNumber") && document.getElementById("contactNumber").value) ? document.getElementById("contactNumber").value.trim() : "",
+    typeOfAssistance:     document.getElementById("typeOfAssistance").value,
+    code:                 document.getElementById("code").value.trim(),
+    remark:               document.getElementById("remark").value.trim(),
+    encodedBy:            document.getElementById("encodedBy").value.trim()
   };
 }
 
 function validateForm(data) {
-  var required = ["idNumber","date","patientName","address","claimant","typeOfAssistance","code","encodedBy"];
+  var required = ["idNumber","date","patientName","address","claimantLastName","claimantFirstName","typeOfAssistance","encodedBy"];
   for (var i = 0; i < required.length; i++) {
     if (!data[required[i]]) return false;
   }
@@ -58,7 +258,11 @@ function sendToSheet(data) {
     var params = new URLSearchParams({
       idNumber: data.idNumber, date: data.date,
       patientName: data.patientName, address: data.address,
-      claimant: data.claimant, typeOfAssistance: data.typeOfAssistance,
+      contactNumber: data.contactNumber || "",
+      claimantLastName: data.claimantLastName,
+      claimantFirstName: data.claimantFirstName,
+      claimantMiddleName: data.claimantMiddleName,
+      typeOfAssistance: data.typeOfAssistance,
       code: data.code, remark: data.remark, encodedBy: data.encodedBy
     });
     var img = new Image();
@@ -95,7 +299,10 @@ function buildPrintArea(data) {
 
   function field(labelText, value) {
     return "<div class='slip-field'>" +
-      "<span class='slip-label'>" + labelText + "</span>" +
+      "<span class='slip-label'>" +
+        "<span class='slip-label-text'>" + labelText + "</span>" +
+        "<span class='slip-label-colon'>:</span>" +
+      "</span>" +
       "<span class='slip-value'>" + (value || "") + "</span>" +
     "</div>";
   }
@@ -108,42 +315,32 @@ function buildPrintArea(data) {
         "<div class='slip-header-center'>" +
           "<div class='slip-org-line'>Republic of the Philippines</div>" +
           "<div class='slip-org-line'>Province of Iloilo</div>" +
-          "<div class='slip-org-line slip-org-name'>MUNICIPALITY OF OTON</div>" +
+          "<div class='slip-org-line slip-org-name'>Municipality of Oton</div>" +
+          "<div class='slip-org-line slip-org-mayor'>OFFICE OF THE MAYOR</div>" +
         "</div>" +
       "</div>" +
-      "<div class='slip-title'>Assistance Record</div>" +
+      "<div class='slip-title'>Assistance to Individuals in Crisis Situations</div>" +
 
-      /* ID Number on its own row */
-      field("ID No.", data.idNumber) +
-
-      /* Patient name */
-      field("Name", data.patientName) +
-
-      /* Address */
-      field("Address", data.address) +
-
-      /* Claimant */
-      field("Claimant", data.claimant) +
-
-      /* Type of Assistance */
-      field("Type", data.typeOfAssistance) +
-
-      /* Date + Code side by side */
-      "<div class='slip-row'>" +
-        "<div class='slip-field'>" +
-          "<span class='slip-label'>Date</span>" +
-          "<span class='slip-value'>" + formatDate(data.date) + "</span>" +
-        "</div>" +
-        "<div class='slip-field'>" +
-          "<span class='slip-label'>Code</span>" +
-          "<span class='slip-value'>" + data.code + "</span>" +
+      "<div class='slip-body'>" +
+        field("Transaction No.", data.idNumber) +
+        field("Date", formatDate(data.date)) +
+        field("Name", data.patientName) +
+        field("Address", data.address) +
+        field("Contact No.", data.contactNumber || "-") +
+        field("Type / Purpose", data.typeOfAssistance) +
+        field("Claimant", data.claimant) +
+        "<div class='slip-row-2 slip-row-last'>" +
+          field("Code", data.code || "") +
+          field("Remark", data.remark || "-") +
         "</div>" +
       "</div>" +
 
-      /* Remark */
-      field("Remark", data.remark || "-") +
-
-      "<div class='slip-footer'>Social Welfare &amp; Development Office &mdash; " + today + "</div>" +
+      "<div class='slip-signature'>" +
+        "<div class='slip-signature-inner'>" +
+          "<div class='slip-signature-line'></div>" +
+          "<div class='slip-signature-label'>Signature Over Printed Name</div>" +
+        "</div>" +
+      "</div>" +
     "</div>";
 }
 
@@ -202,16 +399,42 @@ document.getElementById("assistanceForm").addEventListener("submit", function(e)
   e.preventDefault();
   var data = getFormData();
   if (!validateForm(data)) { showToast("Please fill in all required fields.", "error"); return; }
+
   var btn = document.getElementById("submitBtn");
-  btn.disabled = true; btn.textContent = "Submitting...";
+  var typeHasCooldown = COOLDOWN_TYPES[data.typeOfAssistance];
+  if (typeHasCooldown) {
+    btn.disabled = true;
+    btn.textContent = "Checking...";
+    checkEligibility(data.patientName, data.typeOfAssistance).then(function(result) {
+      btn.disabled = false;
+      btn.textContent = "Submit & Preview";
+      if (result.hasRecord && !result.canRequest) {
+        showEligibilityMessage(result);
+        showToast(result.message, "error");
+        return;
+      }
+      doSubmit(data);
+    });
+  } else {
+    doSubmit(data);
+  }
+});
+
+function doSubmit(data) {
+  var btn = document.getElementById("submitBtn");
+  btn.disabled = true;
+  btn.textContent = "Submitting...";
   sendToSheet(data).then(function() {
     showToast("Record saved to Google Sheets!");
+    showEligibilityMessage({ message: "" });
     buildPreview(data);
     buildPrintArea(data);
     document.getElementById("pdfModal").classList.add("open");
-    btn.disabled = false; btn.textContent = "Submit & Preview";
+    btn.disabled = false;
+    btn.textContent = "Submit & Preview";
+    updateTransactionNumber();
   });
-});
+}
 
 /*
   PRINT SLIP
@@ -243,7 +466,35 @@ document.getElementById("pdfModal").addEventListener("click", function(e) {
 });
 
 document.getElementById("clearBtn").addEventListener("click", function() {
+  var currentTxn = document.getElementById("idNumber").value;
   document.getElementById("assistanceForm").reset();
+  document.getElementById("date").valueAsDate = new Date();
+  document.getElementById("idNumber").value = currentTxn;
 });
 
 document.getElementById("date").valueAsDate = new Date();
+// Always fetch next transaction number from sheet so it stays in sync (no reset on refresh)
+updateTransactionNumber();
+
+document.getElementById("date").addEventListener("change", function() {
+  updateTransactionNumber();
+});
+
+document.getElementById("typeOfAssistance").addEventListener("change", function() {
+  var typeVal = this.value;
+  var typeCode = TYPE_CODES[typeVal] || "GE";
+  setTransactionNumberTypeCode(typeCode);
+  runEligibilityCheck();
+});
+
+function runEligibilityCheck() {
+  var patientName = document.getElementById("patientName").value.trim();
+  var typeOfAssistance = document.getElementById("typeOfAssistance").value;
+  if (!patientName || !COOLDOWN_TYPES[typeOfAssistance]) {
+    showEligibilityMessage({ message: "" });
+    return;
+  }
+  checkEligibility(patientName, typeOfAssistance).then(showEligibilityMessage);
+}
+
+document.getElementById("patientName").addEventListener("blur", runEligibilityCheck);
