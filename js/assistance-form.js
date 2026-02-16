@@ -334,30 +334,24 @@ function buildPrintArea(data) {
     "</div>";
   }
 
-  var sealImg = "images/LGU%20Oton%20Official%20Seal%20(HD).png";
+  var headerImg = "images/NewHeader.jpg";
   document.getElementById("printable-area").innerHTML =
     "<div class='slip-card'>" +
       "<div class='slip-header'>" +
-        "<img class='slip-seal' src='" + sealImg + "' alt='Seal of Oton' />" +
-        "<div class='slip-header-center'>" +
-          "<div class='slip-org-line'>Republic of the Philippines</div>" +
-          "<div class='slip-org-line'>Province of Iloilo</div>" +
-          "<div class='slip-org-line slip-org-name'>Municipality of Oton</div>" +
-          "<div class='slip-org-line slip-org-mayor'>OFFICE OF THE MAYOR</div>" +
-        "</div>" +
+        "<img class='slip-header-img' src='" + headerImg + "' alt='Municipality of Oton' />" +
       "</div>" +
       "<div class='slip-title'>Assistance to Individuals in Crisis Situations</div>" +
 
       "<div class='slip-body'>" +
+        field("Code", data.code || "") +
         field("Transaction No.", data.idNumber) +
         field("Date", formatDate(data.date)) +
-        field("Name", data.patientName) +
+        field("Name of Patient", data.patientName) +
         field("Address", data.address) +
         field("Contact No.", data.contactNumber || "-") +
         field("Type / Purpose", data.typeOfAssistance) +
         field("Claimant", data.claimant) +
-        "<div class='slip-row-2 slip-row-last'>" +
-          field("Code", data.code || "") +
+        "<div class='slip-row-last'>" +
           field("Remark", data.remark || "-") +
         "</div>" +
       "</div>" +

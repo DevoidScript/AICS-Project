@@ -173,60 +173,42 @@ select { cursor: pointer; }
   .slip-card {
     border: 2px solid #000;
     border-radius: 4px;
-    padding: 5mm 8mm 5mm;
+    padding: 0 8mm 5mm;
     width: 100%;
     max-width: 100%;
+    overflow: hidden;
   }
 
-  /* Header: seal left, LGU text center — compact */
+  /* Header: full-width image extending to border, no side gaps */
   .slip-header {
-    display: flex;
-    align-items: flex-start;
-    justify-content: flex-start;
-    gap: 4mm;
-    margin-bottom: 3mm;
-    padding-bottom: 3mm;
+    margin: 0 -8mm 0;
+    padding: 0;
     border-bottom: 1.5px solid #000;
+    line-height: 0;
+    border-radius: 2px 2px 0 0;
   }
-  .slip-seal {
-    width: 18mm;
-    height: 18mm;
-    object-fit: contain;
-    flex-shrink: 0;
-  }
-  .slip-header-center {
-    flex: 1;
-    text-align: center;
-  }
-  .slip-org-line {
-    font-size: 8pt;
-    line-height: 1.25;
-    color: #000;
-    font-weight: normal;
-  }
-  .slip-org-name {
-    font-weight: normal;
-    font-size: 8pt;
-    margin-top: 1px;
-  }
-  .slip-org-mayor {
-    font-weight: 700;
-    font-size: 8.5pt;
-    margin-top: 4mm;
-    letter-spacing: 0.02em;
+  .slip-header-img {
+    width: 100%;
+    height: auto;
+    display: block;
+    object-fit: cover;
+    object-position: top center;
+    image-rendering: auto;
+    image-rendering: high-quality;
   }
 
-  /* "ASSISTANCE TO INDIVIDUALS IN CRISIS SITUATIONS" — small, fits on two lines */
+  /* "ASSISTANCE TO INDIVIDUALS IN CRISIS SITUATIONS" — single line, full width */
   .slip-title {
-    font-size: 8pt;
-    font-weight: 700;
+    font-size: 11pt;
+    font-weight: 800;
     text-align: center;
     text-transform: uppercase;
-    letter-spacing: 0.02em;
+    letter-spacing: -0.02em;
     line-height: 1.2;
-    padding-bottom: 1.5mm;
-    margin-bottom: 1.5mm;
+    padding: 2mm 0 3mm;
+    margin: 0 -8mm 1.5mm;
     border-bottom: 1.5px solid #000;
+    white-space: nowrap;
   }
 
   /* Body: label : value — 8pt, tighter spacing */
@@ -303,7 +285,7 @@ select { cursor: pointer; }
 
   /* Signature: name ON the underline, label below */
   .slip-signature {
-    margin-top: 6mm;
+    margin-top: 6%;
     padding-top: 0;
     width: 100%;
     box-sizing: border-box;
