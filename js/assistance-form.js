@@ -1,13 +1,5 @@
 var APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbynmrEpTPH6xGGsQKVtRDi6zTKvXUE3WqmUVlXmAR0VF6Ne2LcqzGGeMzc2kSgrjVacnA/exec";
 
-var TYPE_CODES = {
-  "Maintenance": "MA",
-  "Burial": "BU",
-  "Dialysis": "DI",
-  "Chemotherapy": "CH",
-  "Medicine": "ME"
-};
-
 var STORAGE_KEY_TXN = "assistanceForm_currentTransactionNumber";
 
 function getStoredTransactionNumber() {
@@ -18,16 +10,6 @@ function setStoredTransactionNumber(value) {
   var el = document.getElementById("idNumber");
   if (el) el.value = value || "";
   if (value) localStorage.setItem(STORAGE_KEY_TXN, value);
-}
-
-/** Clears all transaction-number state so the next generated number will be 001. */
-function resetTransactionNumberToFirst() {
-  var keys = [];
-  for (var i = 0; i < localStorage.length; i++) {
-    var k = localStorage.key(i);
-    if (k && (k === STORAGE_KEY_TXN || k.indexOf("assistanceForm_seq_") === 0)) keys.push(k);
-  }
-  keys.forEach(function(k) { localStorage.removeItem(k); });
 }
 
 var COLUMNS = [
@@ -64,38 +46,57 @@ function getCellValue(col, data) {
   return val;
 }
 
+var GET_NEXT_SEQ_ERROR_MSG = "Could not load next number from sheet. Check connection and try again.";
+
 /**
  * Fetches the next sequence number for the given date from the sheet (source of truth).
  * Uses JSONP to avoid CORS when the form is on file:// or another domain.
+ * On error shows toast with server message if available, otherwise a generic message.
  * @param {string} yyyymmdd - Date as YYYYMMDD
  * @returns {Promise<number|null>} Next sequence (1-based) or null on error
  */
 function fetchNextSequenceFromSheet(yyyymmdd) {
   return new Promise(function(resolve) {
     var callbackName = "__aicsCb" + Date.now();
+    var script;
     var timeout = setTimeout(function() {
       if (window[callbackName]) {
         window[callbackName] = null;
-        showToast("Could not load next number from sheet. Redeploy Apps Script (getNextSeq) and refresh.", "error");
+        try { if (script && script.parentNode) document.body.removeChild(script); } catch (e) {}
+        showToast(GET_NEXT_SEQ_ERROR_MSG, "error");
         resolve(null);
       }
     }, 12000);
     window[callbackName] = function(data) {
       clearTimeout(timeout);
       window[callbackName] = null;
-      try { if (script.parentNode) document.body.removeChild(script); } catch (e) {}
-      resolve(typeof data === "object" && typeof data.nextSeq === "number" ? data.nextSeq : null);
+      try {
+        if (script && script.parentNode) document.body.removeChild(script);
+      } catch (e) {}
+      try {
+        if (typeof data === "object" && data !== null && data.status === "error" && data.message) {
+          showToast(data.message, "error");
+          resolve(null);
+          return;
+        }
+        var next = typeof data === "object" && data !== null && typeof data.nextSeq === "number" ? data.nextSeq : null;
+        if (next === null) showToast(GET_NEXT_SEQ_ERROR_MSG, "error");
+        resolve(next);
+      } catch (e) {
+        showToast(GET_NEXT_SEQ_ERROR_MSG, "error");
+        resolve(null);
+      }
     };
     var url = APPS_SCRIPT_URL + "?action=getNextSeq&date=" + encodeURIComponent(yyyymmdd) + "&callback=" + callbackName + "&_=" + Date.now();
-    var script = document.createElement("script");
-    script.src = url;
+    script = document.createElement("script");
     script.onerror = function() {
       clearTimeout(timeout);
       window[callbackName] = null;
       try { if (script.parentNode) document.body.removeChild(script); } catch (e) {}
-      showToast("Could not load next number from sheet. Redeploy Apps Script (getNextSeq) and refresh.", "error");
+      showToast(GET_NEXT_SEQ_ERROR_MSG, "error");
       resolve(null);
     };
+    script.src = url;
     document.body.appendChild(script);
   });
 }
@@ -103,8 +104,13 @@ function fetchNextSequenceFromSheet(yyyymmdd) {
 /** Cooldown types: Maintenance/Dialysis/Chemotherapy = 6 months, Medicine = 1 year. Burial has no cooldown. */
 var COOLDOWN_TYPES = { "Maintenance": true, "Dialysis": true, "Chemotherapy": true, "Medicine": true };
 
+/** Message shown when eligibility check fails (timeout, network, or invalid response). */
+var ELIGIBILITY_CHECK_FAILED_MSG = "Could not verify eligibility. Please check your connection and try again.";
+
 /**
- * Check eligibility for patient + type (cooldown). Returns Promise<{ hasRecord, lastRequestDate, eligibleAgainDate, canRequest, message }>.
+ * Check eligibility for patient + type (cooldown).
+ * Returns Promise<{ hasRecord, lastRequestDate, eligibleAgainDate, canRequest, message, eligibilityCheckFailed? }>.
+ * On timeout, network error, or invalid response, resolves with eligibilityCheckFailed: true and a user-facing message.
  */
 function checkEligibility(patientName, typeOfAssistance) {
   return new Promise(function(resolve) {
@@ -118,25 +124,36 @@ function checkEligibility(patientName, typeOfAssistance) {
     var timeout = setTimeout(function() {
       if (window[callbackName]) {
         window[callbackName] = null;
-        resolve({ hasRecord: false, canRequest: true, message: "" });
+        try { if (script.parentNode) document.body.removeChild(script); } catch (e) {}
+        resolve({ hasRecord: false, canRequest: true, message: ELIGIBILITY_CHECK_FAILED_MSG, eligibilityCheckFailed: true });
       }
     }, 10000);
     window[callbackName] = function(data) {
       clearTimeout(timeout);
       window[callbackName] = null;
-      try { if (script.parentNode) document.body.removeChild(script); } catch (e) {}
-      resolve(typeof data === "object" ? data : { hasRecord: false, canRequest: true, message: "" });
+      try {
+        if (script.parentNode) document.body.removeChild(script);
+      } catch (e) {}
+      try {
+        if (typeof data === "object" && data !== null) {
+          resolve(data);
+        } else {
+          resolve({ hasRecord: false, canRequest: true, message: ELIGIBILITY_CHECK_FAILED_MSG, eligibilityCheckFailed: true });
+        }
+      } catch (e) {
+        resolve({ hasRecord: false, canRequest: true, message: ELIGIBILITY_CHECK_FAILED_MSG, eligibilityCheckFailed: true });
+      }
     };
     var url = APPS_SCRIPT_URL + "?action=checkEligibility&patientName=" + encodeURIComponent(patientName) +
       "&typeOfAssistance=" + encodeURIComponent(typeOfAssistance) + "&callback=" + callbackName + "&_=" + Date.now();
     var script = document.createElement("script");
-    script.src = url;
     script.onerror = function() {
       clearTimeout(timeout);
       window[callbackName] = null;
       try { if (script.parentNode) document.body.removeChild(script); } catch (e) {}
-      resolve({ hasRecord: false, canRequest: true, message: "" });
+      resolve({ hasRecord: false, canRequest: true, message: ELIGIBILITY_CHECK_FAILED_MSG, eligibilityCheckFailed: true });
     };
+    script.src = url;
     document.body.appendChild(script);
   });
 }
@@ -159,7 +176,11 @@ function showEligibilityMessage(result) {
     displayMessage = "This patient already has a " + type + " request on " + lastReadable + ". They may request again on " + eligibleReadable + ".";
   }
   el.textContent = displayMessage;
-  el.className = "eligibility-message " + (result.canRequest ? "eligibility-ok" : "eligibility-warn");
+  if (result.eligibilityCheckFailed) {
+    el.className = "eligibility-message eligibility-info";
+  } else {
+    el.className = "eligibility-message " + (result.canRequest ? "eligibility-ok" : "eligibility-warn");
+  }
   el.style.display = "block";
 }
 
@@ -285,31 +306,105 @@ function capitalizeFormData(data) {
   return out;
 }
 
-function validateForm(data) {
-  var required = ["idNumber","date","patientName","address","claimantLastName","claimantFirstName","typeOfAssistance","encodedBy"];
-  for (var i = 0; i < required.length; i++) {
-    if (!data[required[i]]) return false;
-  }
-  return true;
+/** Required form fields and their labels for validation messages. */
+var REQUIRED_FIELDS = [
+  { key: "idNumber", label: "Transaction Number" },
+  { key: "date", label: "Date" },
+  { key: "patientName", label: "Name of Patient / Deceased" },
+  { key: "address", label: "Address" },
+  { key: "claimantLastName", label: "Claimant (Last name)" },
+  { key: "claimantFirstName", label: "Claimant (First name)" },
+  { key: "typeOfAssistance", label: "Type of Assistance" },
+  { key: "encodedBy", label: "Encoded By" }
+];
+
+/** Philippine mobile: 11 digits only (09XXXXXXXXX). */
+var PH_MOBILE_LENGTH = 11;
+
+function isValidPhilippineContactNumber(value) {
+  if (!value || typeof value !== "string") return false;
+  var digits = value.replace(/\D/g, "");
+  return digits.length === PH_MOBILE_LENGTH && digits.charAt(0) === "0" && digits.charAt(1) === "9";
 }
 
+/**
+ * Validates required fields. Returns { valid: true } or { valid: false, message: string, missing: string[] }.
+ * Contact number, when provided, must be 11 digits starting with 09.
+ */
+function validateForm(data) {
+  var missing = [];
+  for (var i = 0; i < REQUIRED_FIELDS.length; i++) {
+    var field = REQUIRED_FIELDS[i];
+    var val = data[field.key];
+    if (val === undefined || val === null || String(val).trim() === "") missing.push(field.label);
+  }
+  var contactVal = (data.contactNumber || "").trim();
+  if (contactVal && !isValidPhilippineContactNumber(contactVal)) {
+    return {
+      valid: false,
+      message: "Contact Number must be 11 digits starting with 09 (e.g. 09171234567).",
+      missing: missing
+    };
+  }
+  if (missing.length === 0) return { valid: true };
+  return {
+    valid: false,
+    message: "Please fill in: " + missing.join(", ") + ".",
+    missing: missing
+  };
+}
+
+/**
+ * Sends form data to the Google Apps Script web app via JSONP.
+ * Returns a Promise that resolves with { status: "success" } or { status: "error", message: "..." }
+ * so the UI can show the correct feedback and only open the preview on real success.
+ */
 function sendToSheet(data) {
   return new Promise(function(resolve) {
     var params = new URLSearchParams({
-      idNumber: data.idNumber, date: data.date,
-      patientName: data.patientName, address: data.address,
+      idNumber: data.idNumber,
+      date: data.date,
+      patientName: data.patientName,
+      address: data.address,
       contactNumber: data.contactNumber || "",
       claimantLastName: data.claimantLastName,
       claimantFirstName: data.claimantFirstName,
       claimantMiddleName: data.claimantMiddleName,
       typeOfAssistance: data.typeOfAssistance,
-      code: data.code, remark: data.remark, encodedBy: data.encodedBy
+      code: data.code,
+      remark: data.remark,
+      encodedBy: data.encodedBy
     });
-    var img = new Image();
-    img.onload  = function() { resolve({ status: "success" }); };
-    img.onerror = function() { resolve({ status: "success" }); };
-    img.src = APPS_SCRIPT_URL + "?" + params.toString();
-    setTimeout(function() { resolve({ status: "success" }); }, 6000);
+    var callbackName = "__aicsSubmit" + Date.now();
+    var timeout = setTimeout(function() {
+      if (window[callbackName]) {
+        window[callbackName] = null;
+        try { if (script.parentNode) document.body.removeChild(script); } catch (e) {}
+        resolve({ status: "error", message: "Request timed out. Please check your connection and try again." });
+      }
+    }, 15000);
+    window[callbackName] = function(data) {
+      clearTimeout(timeout);
+      window[callbackName] = null;
+      try { if (script.parentNode) document.body.removeChild(script); } catch (e) {}
+      try {
+        var status = (data && data.status) || "error";
+        var message = (data && data.message) ? String(data.message) : "";
+        resolve({ status: status, message: message });
+      } catch (e) {
+        resolve({ status: "error", message: "Invalid response from server. Please try again." });
+      }
+    };
+    var query = params.toString() + "&callback=" + encodeURIComponent(callbackName) + "&_=" + Date.now();
+    var script = document.createElement("script");
+    script.onerror = function() {
+      clearTimeout(timeout);
+      window[callbackName] = null;
+      try { if (script.parentNode) document.body.removeChild(script); } catch (e) {}
+      resolve({ status: "error", message: "Network error. Check your connection and try again." });
+    };
+    script.src = APPS_SCRIPT_URL + "?" + query;
+    document.body.appendChild(script);
   });
 }
 
@@ -475,7 +570,11 @@ function downloadAsPDF(data) {
 document.getElementById("assistanceForm").addEventListener("submit", function(e) {
   e.preventDefault();
   var data = getFormData();
-  if (!validateForm(data)) { showToast("Please fill in all required fields.", "error"); return; }
+  var validation = validateForm(data);
+  if (!validation.valid) {
+    showToast(validation.message || "Please fill in all required fields.", "error");
+    return;
+  }
 
   var btn = document.getElementById("submitBtn");
   var typeHasCooldown = COOLDOWN_TYPES[data.typeOfAssistance];
@@ -490,6 +589,11 @@ document.getElementById("assistanceForm").addEventListener("submit", function(e)
         showCooldownWarningModal(result);
         return;
       }
+      if (result.eligibilityCheckFailed) {
+        showEligibilityMessage(result);
+      } else {
+        showEligibilityMessage({ message: "" });
+      }
       doSubmit(data);
     });
   } else {
@@ -502,14 +606,18 @@ function doSubmit(data) {
   var btn = document.getElementById("submitBtn");
   btn.disabled = true;
   btn.textContent = "Submitting...";
-  sendToSheet(data).then(function() {
+  sendToSheet(data).then(function(result) {
+    btn.disabled = false;
+    btn.textContent = "Submit & Preview";
+    if (result.status === "error") {
+      showToast(result.message || "Something went wrong. Please try again.", "error");
+      return;
+    }
     showToast("Record saved to Google Sheets!");
     showEligibilityMessage({ message: "" });
     buildPreview(data);
     buildPrintArea(data);
     document.getElementById("pdfModal").classList.add("open");
-    btn.disabled = false;
-    btn.textContent = "Submit & Preview";
     updateTransactionNumber();
   });
 }
@@ -597,3 +705,10 @@ function runEligibilityCheck() {
 }
 
 document.getElementById("patientName").addEventListener("blur", runEligibilityCheck);
+
+/** Restrict contact number to digits only, max 11. */
+document.getElementById("contactNumber").addEventListener("input", function() {
+  var el = this;
+  var digits = el.value.replace(/\D/g, "").substring(0, 11);
+  el.value = digits;
+});

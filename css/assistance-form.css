@@ -98,6 +98,12 @@ select { cursor: pointer; }
   border: 1px solid var(--success);
   color: #164a2a;
 }
+.eligibility-message.eligibility-info {
+  display: block;
+  background: rgba(26, 58, 42, 0.06);
+  border: 1px solid var(--accent);
+  color: var(--muted);
+}
 
 #toast {
   position: fixed; bottom: 28px; right: 28px;
