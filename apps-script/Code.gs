@@ -292,7 +292,7 @@ function doGet(e) {
 
 /**
  * Returns the next sequence number for transaction IDs on the given date.
- * Reads ID Number column (A); IDs are AICS-YYYYMMDD-XX-NNN. Finds max NNN for that date.
+ * Reads ID Number column (A); IDs are AICS-YYYYMMDD-NNN. Finds max NNN for that date.
  * Query: ?action=getNextSeq&date=20260216
  * On error (null sheet or exception) returns { nextSeq: null, status: "error", message: "..." } so client can show it.
  */
