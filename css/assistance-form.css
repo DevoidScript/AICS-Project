@@ -223,6 +223,7 @@ select { cursor: pointer; }
   min-height: 9pt;
   line-height: 1.15;
   word-break: break-word;
+  text-transform: uppercase;
 }
 #pdf-preview .slip-row-2 {
   display: flex;
@@ -425,6 +426,7 @@ select { cursor: pointer; }
     min-height: 9pt;
     line-height: 1.15;
     word-break: break-word;
+    text-transform: uppercase;
   }
 
   /* Code + Remark: 8pt, compact spacing */

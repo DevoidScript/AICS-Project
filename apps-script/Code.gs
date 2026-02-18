@@ -9,6 +9,7 @@ function getCooldownMonths(typeOfAssistance) {
 /**
  * Compute eligibility for patient + type (cooldown). Returns payload object only.
  * Used by getCheckEligibilityResponse and by doGet before appending a new row.
+ * Matching is case-insensitive: patient/deceased is the main check, then type of assistance.
  */
 function getEligibilityPayload(sheet, patientName, typeOfAssistance) {
   var lastRow = sheet.getLastRow();
@@ -29,13 +30,17 @@ function getEligibilityPayload(sheet, patientName, typeOfAssistance) {
 
   if (lastRow < 2) return payload;
 
-  // Columns: A=ID, B=Date, C=Patient, ..., G=Type of Assistance
+  var patientLower = patientName.toLowerCase();
+  var typeLower = typeOfAssistance.toLowerCase();
+
+  // Columns: A=ID, B=Date, C=Patient/Deceased, D=Address, E=Contact, F=Claimant, G=Type of Assistance
+  // Main check: patient/deceased (case-insensitive) and type (case-insensitive). Claimant is not used for matching so the same patient is found regardless of who claimed.
   var data = sheet.getRange(2, 1, lastRow, 7).getValues();
   var lastRequestDate = null;
   for (var i = 0; i < data.length; i++) {
     var rowPatient = String(data[i][2] || "").trim();
     var rowType = String(data[i][6] || "").trim();
-    if (rowPatient.toLowerCase() !== patientName.toLowerCase() || rowType !== typeOfAssistance) continue;
+    if (rowPatient.toLowerCase() !== patientLower || rowType.toLowerCase() !== typeLower) continue;
     var rowDate = data[i][1];
     if (!rowDate) continue;
     var d = rowDate instanceof Date ? rowDate : new Date(rowDate + "T00:00:00");
@@ -73,6 +78,7 @@ function getEligibilityPayload(sheet, patientName, typeOfAssistance) {
  * Check if patient can request again for this type.
  * Returns JSON(P): hasRecord, lastRequestDate, eligibleAgainDate, canRequest, message.
  * Query: ?action=checkEligibility&patientName=...&typeOfAssistance=...
+ * Matching is case-insensitive; patient/deceased is the main check.
  */
 function getCheckEligibilityResponse(params) {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();

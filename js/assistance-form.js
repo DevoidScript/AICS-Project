@@ -211,6 +211,7 @@ function generateTransactionNumber(overrideSeq) {
 
 /**
  * Fetches next sequence from sheet and updates the transaction number field.
+ * Always checks the sheet first; only sets the field after the response (so it stays accurate).
  * Falls back to localStorage-based generation if the request fails.
  */
 function updateTransactionNumber() {
@@ -221,6 +222,8 @@ function updateTransactionNumber() {
     dateStr = today.getFullYear() + "-" + String(today.getMonth() + 1).padStart(2, "0") + "-" + String(today.getDate()).padStart(2, "0");
   }
   var yyyymmdd = dateStr.replace(/-/g, "");
+  // Clear field first so we never show a stale value before the sheet is checked
+  setStoredTransactionNumber("");
   fetchNextSequenceFromSheet(yyyymmdd).then(function(nextSeq) {
     var value;
     if (nextSeq !== null) {
@@ -265,6 +268,21 @@ function getFormData() {
     remark:               document.getElementById("remark").value.trim(),
     encodedBy:            document.getElementById("encodedBy").value.trim()
   };
+}
+
+/** Returns a copy of form data with all string fields in ALL CAPS (for sheet, preview, print, PDF). */
+function capitalizeFormData(data) {
+  var out = {};
+  for (var key in data) {
+    if (data.hasOwnProperty(key)) {
+      out[key] = typeof data[key] === "string" ? data[key].toUpperCase() : data[key];
+    }
+  }
+  var last = out.claimantLastName || "";
+  var first = out.claimantFirstName || "";
+  var mid = out.claimantMiddleName || "";
+  out.claimant = last + (first ? ", " + first : "") + (mid ? " " + mid : "");
+  return out;
 }
 
 function validateForm(data) {
@@ -316,7 +334,7 @@ function getSlipHtml(data) {
     "<div class='slip-body'>" +
       field("Code", data.code || "") +
       field("Transaction No.", data.idNumber) +
-      field("Date", formatDate(data.date)) +
+      field("Date", (formatDate(data.date) || "").toUpperCase()) +
       field("Name of Patient", data.patientName) +
       field("Address", data.address) +
       field("Contact No.", data.contactNumber || "-") +
@@ -345,17 +363,18 @@ function buildPrintArea(data) {
   document.getElementById("printable-area").innerHTML = getSlipHtml(data);
 }
 
-/* ── Download PDF: page 1 = table form, page 2 = printable slip (backup) ── */
+/* ── Download PDF: single page — table on top, printable slip below ── */
 function downloadAsPDF(data) {
   var jsPDF = window.jspdf.jsPDF;
   var doc = new jsPDF({ unit: "mm", format: "a4", orientation: "landscape" });
   var pageW = doc.internal.pageSize.getWidth();
+  var pageH = doc.internal.pageSize.getHeight();
   var margin = 12;
   var usableW = pageW - margin * 2;
   var colW = usableW / COLUMNS.length;
   var y = 18;
 
-  /* ── Page 1: Table form ── */
+  /* ── Top: Table form ── */
   doc.setFont("times", "bold"); doc.setFontSize(14); doc.setTextColor(26, 58, 42);
   doc.text("Social Welfare & Development Office", pageW / 2, y, { align: "center" });
   y += 6;
@@ -392,58 +411,45 @@ function downloadAsPDF(data) {
   var today = new Date().toLocaleDateString("en-PH", { year: "numeric", month: "long", day: "numeric" });
   doc.text("Date Generated: " + today, margin, y);
   doc.text("This document is system-generated.", pageW - margin, y, { align: "right" });
+  y += 12;
 
-  /* ── Page 2: Printable slip (backup) ── */
-  doc.addPage("a5", "portrait");
-  pageW = doc.internal.pageSize.getWidth();
-  margin = 8;
-  var contentW = pageW - margin * 2;
-  y = margin;
-  var lineH = 5;
-  var labelW = 38;
+  /* ── Bottom (same page): Compact printable slip ── */
+  var slipMargin = margin;
+  var slipW = usableW;
+  var slipLabelW = 32;
+  var lineH = 4;
+  var slipFontSize = 7;
 
   doc.setDrawColor(0, 0, 0);
-  doc.setLineWidth(0.3);
-  doc.rect(margin, y, contentW, doc.internal.pageSize.getHeight() - margin * 2);
+  doc.setLineWidth(0.25);
+  doc.rect(slipMargin, y, slipW, pageH - y - margin);
   y += 4;
 
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
-  doc.text("Republic of the Philippines", pageW / 2, y, { align: "center" });
-  y += 4;
-  doc.text("Province of Iloilo", pageW / 2, y, { align: "center" });
-  y += 4;
-  doc.text("Municipality of Oton", pageW / 2, y, { align: "center" });
-  y += 4;
   doc.setFont("helvetica", "bold");
-  doc.text("OFFICE OF THE MAYOR", pageW / 2, y, { align: "center" });
-  y += 6;
-  doc.line(margin, y, pageW - margin, y);
-  y += 6;
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(10);
+  doc.setFontSize(slipFontSize + 1);
   doc.text("ASSISTANCE TO INDIVIDUALS IN CRISIS SITUATIONS", pageW / 2, y, { align: "center" });
-  y += 6;
-  doc.line(margin, y, pageW - margin, y);
-  y += 5;
+  y += 4;
+  doc.setDrawColor(0, 0, 0);
+  doc.setLineWidth(0.2);
+  doc.line(slipMargin + 2, y, pageW - slipMargin - 2, y);
+  y += 4;
 
   function slipLine(label, value) {
     var val = (value !== undefined && value !== null && value !== "") ? String(value) : "";
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(8);
-    doc.text(label + ":", margin + 2, y + 3);
+    doc.setFontSize(slipFontSize);
+    doc.text(label + ":", slipMargin + 2, y + 2.5);
     doc.setFont("helvetica", "normal");
     doc.setDrawColor(0, 0, 0);
-    doc.setLineWidth(0.2);
-    doc.line(margin + labelW, y + 3.5, pageW - margin - 2, y + 3.5);
-    doc.text(val, margin + labelW + 2, y + 3);
+    doc.setLineWidth(0.15);
+    doc.line(slipMargin + slipLabelW, y + 2.8, pageW - slipMargin - 2, y + 2.8);
+    doc.text(val, slipMargin + slipLabelW + 2, y + 2.5);
     y += lineH;
   }
 
   slipLine("Code", data.code);
   slipLine("Transaction No.", data.idNumber);
-  slipLine("Date", formatDate(data.date));
+  slipLine("Date", (formatDate(data.date) || "").toUpperCase());
   slipLine("Name of Patient", data.patientName);
   slipLine("Address", data.address);
   slipLine("Contact No.", data.contactNumber || "-");
@@ -453,11 +459,11 @@ function downloadAsPDF(data) {
   y += 3;
 
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
-  doc.text(data.claimant || "", pageW / 2, y + 3, { align: "center" });
-  doc.line(margin + (contentW - 45) / 2, y + 5, pageW - margin - (contentW - 45) / 2, y + 5);
-  y += 6;
-  doc.setFontSize(6);
+  doc.setFontSize(slipFontSize);
+  doc.text(data.claimant || "", pageW / 2, y + 2.5, { align: "center" });
+  doc.line(slipMargin + (slipW - 40) / 2, y + 4, pageW - slipMargin - (slipW - 40) / 2, y + 4);
+  y += 5;
+  doc.setFontSize(5.5);
   doc.setTextColor(80, 80, 80);
   doc.text("Signature Over Printed Name", pageW / 2, y, { align: "center" });
 
@@ -492,6 +498,7 @@ document.getElementById("assistanceForm").addEventListener("submit", function(e)
 });
 
 function doSubmit(data) {
+  data = capitalizeFormData(data);
   var btn = document.getElementById("submitBtn");
   btn.disabled = true;
   btn.textContent = "Submitting...";
@@ -522,17 +529,27 @@ document.getElementById("printBtn").addEventListener("click", function() {
 });
 
 document.getElementById("downloadPdf").addEventListener("click", function() {
-  downloadAsPDF(getFormData());
+  downloadAsPDF(capitalizeFormData(getFormData()));
 });
 
-["closeModal","closeModal2"].forEach(function(id) {
-  document.getElementById(id).addEventListener("click", function() {
-    document.getElementById("pdfModal").classList.remove("open");
-  });
+function closePreviewModalAndClearForm() {
+  document.getElementById("pdfModal").classList.remove("open");
+  clearFormAndFetchNextTxn();
+}
+
+["closeModal", "closeModal2"].forEach(function(id) {
+  var el = document.getElementById(id);
+  if (el) {
+    el.addEventListener("click", function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      closePreviewModalAndClearForm();
+    });
+  }
 });
 document.getElementById("pdfModal").addEventListener("click", function(e) {
   if (e.target === document.getElementById("pdfModal")) {
-    document.getElementById("pdfModal").classList.remove("open");
+    closePreviewModalAndClearForm();
   }
 });
 
@@ -546,12 +563,15 @@ document.getElementById("cooldownWarningModal").addEventListener("click", functi
   }
 });
 
-document.getElementById("clearBtn").addEventListener("click", function() {
-  var currentTxn = document.getElementById("idNumber").value;
+/** Clears the form and fetches the next transaction number from the sheet (for Clear Form and after closing preview). */
+function clearFormAndFetchNextTxn() {
   document.getElementById("assistanceForm").reset();
   document.getElementById("date").valueAsDate = new Date();
-  document.getElementById("idNumber").value = currentTxn;
-});
+  showEligibilityMessage({ message: "" });
+  updateTransactionNumber();
+}
+
+document.getElementById("clearBtn").addEventListener("click", clearFormAndFetchNextTxn);
 
 document.getElementById("date").valueAsDate = new Date();
 // Always fetch next transaction number from sheet so it stays in sync (no reset on refresh)
