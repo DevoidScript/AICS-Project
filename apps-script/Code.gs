@@ -243,6 +243,14 @@ function doGet(e) {
     }
     var sheet = sheetResult.sheet;
 
+    // Prevent insertions into AICS_2025; use AICS_2026 for new entries (continuous use)
+    var sheetName = sheet.getName().trim();
+    if (sheetName === "AICS_2025" || sheetName === "AICS 2025") {
+      var ss = SpreadsheetApp.getActiveSpreadsheet();
+      var targetSheet = ss.getSheetByName("AICS_2026") || ss.getSheetByName("AICS 2026");
+      if (targetSheet) sheet = targetSheet;
+    }
+
     // Cooldown: for non-Burial types, block submission if patient is still in cooldown
     var typeOfAssistance = (params.typeOfAssistance || "").trim();
     if (typeOfAssistance !== "Burial") {
