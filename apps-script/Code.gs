@@ -14,11 +14,11 @@ function getSheetOrError() {
   }
 }
 
-/** Cooldown months per type. Burial has no cooldown (null). Medicine, Laboratory, Hospital Bill, Confinement = 12 months. */
+/** Cooldown months per type (case-insensitive). Burial has no cooldown (null). Medicine, Laboratory, Hospital Bill, Confinement = 12 months. */
 function getCooldownMonths(typeOfAssistance) {
-  var t = (typeOfAssistance || "").trim();
-  if (t === "Maintenance" || t === "Dialysis" || t === "Chemotherapy") return 6;
-  if (t === "Medicine" || t === "Laboratory" || t === "Hospital Bill" || t === "Confinement") return 12;
+  var t = (typeOfAssistance || "").trim().toLowerCase();
+  if (t === "maintenance" || t === "dialysis" || t === "chemotherapy") return 6;
+  if (t === "medicine" || t === "laboratory" || t === "hospital bill" || t === "confinement") return 12;
   return null; // Burial or unknown: no cooldown
 }
 
@@ -53,10 +53,11 @@ function getEligibilityPayload(sheet, patientName, typeOfAssistance) {
     return payload;
   }
 
-  // earliestRelevantYear = year of (today - cooldown months). Min sheet year = that - 1 (buffer).
+  // earliestRelevantYear = year of (today - max cooldown months among types). Min sheet year = that - 1 (buffer).
   var today = new Date();
+  var maxCooldownMonths = 12; // current maximum across assistance types with cooldown
   var cutoffDate = new Date(today.getTime());
-  cutoffDate.setMonth(cutoffDate.getMonth() - cooldownMonths);
+  cutoffDate.setMonth(cutoffDate.getMonth() - maxCooldownMonths);
   var earliestRelevantYear = cutoffDate.getFullYear();
   var minSheetYear = earliestRelevantYear - 1;
 
@@ -64,8 +65,9 @@ function getEligibilityPayload(sheet, patientName, typeOfAssistance) {
   var allSheets = ss.getSheets();
 
   var patientLower = patientName.toLowerCase();
-  var typeLower = typeOfAssistance.toLowerCase();
-  var lastRequestDate = null;
+  var blockingEligibleDate = null;
+  var blockingRequestDate = null;
+  var blockingRequestType = null;
 
   // Columns: A=ID, B=Date, C=Patient/Deceased, D=Address, E=Contact, F=Claimant, G=Type of Assistance
   for (var s = 0; s < allSheets.length; s++) {
@@ -79,36 +81,48 @@ function getEligibilityPayload(sheet, patientName, typeOfAssistance) {
     for (var i = 0; i < data.length; i++) {
       var rowPatient = String(data[i][2] || "").trim();  // Column C = Patient/Deceased
       var rowType = String(data[i][6] || "").trim();
-      if (rowPatient.toLowerCase() !== patientLower || rowType.toLowerCase() !== typeLower) continue;
+      if (rowPatient.toLowerCase() !== patientLower) continue;
+
+      var rowCooldown = getCooldownMonths(rowType);
+      if (rowCooldown === null) continue; // types with no cooldown (e.g., Burial) do not block
+
       var rowDate = data[i][1];
       if (!rowDate) continue;
       var d = rowDate instanceof Date ? rowDate : new Date(rowDate + "T00:00:00");
       if (isNaN(d.getTime())) continue;
-      if (!lastRequestDate || d > lastRequestDate) lastRequestDate = d;
+
+      var rowEligible = new Date(d.getTime());
+      rowEligible.setMonth(rowEligible.getMonth() + rowCooldown);
+      rowEligible.setDate(rowEligible.getDate() + 1);
+
+      // Track the latest eligibility date; new requests are allowed only after all cooldowns have expired.
+      if (!blockingEligibleDate || rowEligible > blockingEligibleDate) {
+        blockingEligibleDate = rowEligible;
+        blockingRequestDate = d;
+        blockingRequestType = rowType;
+      }
     }
   }
 
-  if (!lastRequestDate) return payload;
+  if (!blockingEligibleDate) return payload;
 
   payload.hasRecord = true;
-  var lastStr = formatDateForSheet(lastRequestDate);
+  payload.typeOfAssistance = blockingRequestType;
+  var lastStr = formatDateForSheet(blockingRequestDate);
   payload.lastRequestDate = lastStr;
 
-  var eligible = new Date(lastRequestDate.getTime());
-  eligible.setMonth(eligible.getMonth() + cooldownMonths);
-  eligible.setDate(eligible.getDate() + 1);
+  var eligible = new Date(blockingEligibleDate.getTime());
   payload.eligibleAgainDate = formatDateForSheet(eligible);
 
   today.setHours(0, 0, 0, 0);
   eligible.setHours(0, 0, 0, 0);
   payload.canRequest = today >= eligible;
   if (payload.canRequest) {
-    payload.message = "A previous " + typeOfAssistance + " request was recorded. You may submit a new request (a new record will be created).";
+    payload.message = "A previous " + blockingRequestType + " request was recorded. You may submit a new " + typeOfAssistance + " request.";
   } else {
-    payload.typeOfAssistance = typeOfAssistance;
-    payload.lastRequestDateReadable = formatDateReadable(lastRequestDate);
+    payload.lastRequestDateReadable = formatDateReadable(blockingRequestDate);
     payload.eligibleAgainDateReadable = formatDateReadable(eligible);
-    payload.message = "This patient already has a " + typeOfAssistance + " request on " + payload.lastRequestDateReadable + ". They may request again on " + payload.eligibleAgainDateReadable + ".";
+    payload.message = "This patient already has a " + blockingRequestType + " request on " + payload.lastRequestDateReadable + ". They may request " + typeOfAssistance + " on " + payload.eligibleAgainDateReadable + ".";
   }
   return payload;
 }
