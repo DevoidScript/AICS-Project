@@ -318,18 +318,17 @@ var REQUIRED_FIELDS = [
   { key: "encodedBy", label: "Encoded By" }
 ];
 
-/** Philippine mobile: 11 digits only (09XXXXXXXXX). */
-var PH_MOBILE_LENGTH = 11;
+/** Max length for contact number. */
+var CONTACT_MAX_LENGTH = 11;
 
-function isValidPhilippineContactNumber(value) {
-  if (!value || typeof value !== "string") return false;
-  var digits = value.replace(/\D/g, "");
-  return digits.length === PH_MOBILE_LENGTH && digits.charAt(0) === "0" && digits.charAt(1) === "9";
+function isValidContactNumber(value) {
+  if (!value || typeof value !== "string") return true; // empty is OK (optional field)
+  return String(value).trim().length <= CONTACT_MAX_LENGTH;
 }
 
 /**
  * Validates required fields. Returns { valid: true } or { valid: false, message: string, missing: string[] }.
- * Contact number, when provided, must be 11 digits starting with 09.
+ * Contact number, when provided, must be at most 11 characters.
  */
 function validateForm(data) {
   var missing = [];
@@ -339,10 +338,10 @@ function validateForm(data) {
     if (val === undefined || val === null || String(val).trim() === "") missing.push(field.label);
   }
   var contactVal = (data.contactNumber || "").trim();
-  if (contactVal && !isValidPhilippineContactNumber(contactVal)) {
+  if (contactVal && !isValidContactNumber(contactVal)) {
     return {
       valid: false,
-      message: "Contact Number must be 11 digits starting with 09 (e.g. 09171234567).",
+      message: "Contact Number must be at most 11 characters.",
       missing: missing
     };
   }
@@ -706,9 +705,8 @@ function runEligibilityCheck() {
 
 document.getElementById("patientName").addEventListener("blur", runEligibilityCheck);
 
-/** Restrict contact number to digits only, max 11. */
+/** Limit contact number to 11 characters (any characters allowed). */
 document.getElementById("contactNumber").addEventListener("input", function() {
   var el = this;
-  var digits = el.value.replace(/\D/g, "").substring(0, 11);
-  el.value = digits;
+  if (el.value.length > 11) el.value = el.value.substring(0, 11);
 });

@@ -23,12 +23,21 @@ function getCooldownMonths(typeOfAssistance) {
 }
 
 /**
+ * Extracts 4-digit year from sheet name (e.g. "AICS 2025" -> 2025). Returns null if not found.
+ */
+function extractYearFromSheetName(sheetName) {
+  if (!sheetName || typeof sheetName !== "string") return null;
+  var match = String(sheetName).match(/(19|20)\d{2}/);
+  return match ? parseInt(match[0], 10) : null;
+}
+
+/**
  * Compute eligibility for patient + type (cooldown). Returns payload object only.
  * Used by getCheckEligibilityResponse and by doGet before appending a new row.
- * Matching is case-insensitive: patient/deceased is the main check, then type of assistance.
+ * Matches on Patient/Deceased (column C), NOT Claimant. Type of Assistance (column G).
+ * Searches ALL relevant sheets (skips sheets too old based on cooldown).
  */
 function getEligibilityPayload(sheet, patientName, typeOfAssistance) {
-  var lastRow = sheet.getLastRow();
   patientName = (patientName || "").trim();
   typeOfAssistance = (typeOfAssistance || "").trim();
   var payload = { hasRecord: false, lastRequestDate: null, eligibleAgainDate: null, canRequest: true, message: "" };
@@ -44,24 +53,39 @@ function getEligibilityPayload(sheet, patientName, typeOfAssistance) {
     return payload;
   }
 
-  if (lastRow < 2) return payload;
+  // earliestRelevantYear = year of (today - cooldown months). Min sheet year = that - 1 (buffer).
+  var today = new Date();
+  var cutoffDate = new Date(today.getTime());
+  cutoffDate.setMonth(cutoffDate.getMonth() - cooldownMonths);
+  var earliestRelevantYear = cutoffDate.getFullYear();
+  var minSheetYear = earliestRelevantYear - 1;
+
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var allSheets = ss.getSheets();
 
   var patientLower = patientName.toLowerCase();
   var typeLower = typeOfAssistance.toLowerCase();
+  var lastRequestDate = null;
 
   // Columns: A=ID, B=Date, C=Patient/Deceased, D=Address, E=Contact, F=Claimant, G=Type of Assistance
-  // Main check: patient/deceased (case-insensitive) and type (case-insensitive). Claimant is not used for matching so the same patient is found regardless of who claimed.
-  var data = sheet.getRange(2, 1, lastRow, 7).getValues();
-  var lastRequestDate = null;
-  for (var i = 0; i < data.length; i++) {
-    var rowPatient = String(data[i][2] || "").trim();
-    var rowType = String(data[i][6] || "").trim();
-    if (rowPatient.toLowerCase() !== patientLower || rowType.toLowerCase() !== typeLower) continue;
-    var rowDate = data[i][1];
-    if (!rowDate) continue;
-    var d = rowDate instanceof Date ? rowDate : new Date(rowDate + "T00:00:00");
-    if (isNaN(d.getTime())) continue;
-    if (!lastRequestDate || d > lastRequestDate) lastRequestDate = d;
+  for (var s = 0; s < allSheets.length; s++) {
+    var currentSheet = allSheets[s];
+    var sheetYear = extractYearFromSheetName(currentSheet.getName());
+    if (sheetYear !== null && sheetYear < minSheetYear) continue; // Skip sheets too old
+    var lastRow = currentSheet.getLastRow();
+    if (lastRow < 2) continue;
+
+    var data = currentSheet.getRange(2, 1, lastRow - 1, 7).getValues();
+    for (var i = 0; i < data.length; i++) {
+      var rowPatient = String(data[i][2] || "").trim();  // Column C = Patient/Deceased
+      var rowType = String(data[i][6] || "").trim();
+      if (rowPatient.toLowerCase() !== patientLower || rowType.toLowerCase() !== typeLower) continue;
+      var rowDate = data[i][1];
+      if (!rowDate) continue;
+      var d = rowDate instanceof Date ? rowDate : new Date(rowDate + "T00:00:00");
+      if (isNaN(d.getTime())) continue;
+      if (!lastRequestDate || d > lastRequestDate) lastRequestDate = d;
+    }
   }
 
   if (!lastRequestDate) return payload;
@@ -75,7 +99,6 @@ function getEligibilityPayload(sheet, patientName, typeOfAssistance) {
   eligible.setDate(eligible.getDate() + 1);
   payload.eligibleAgainDate = formatDateForSheet(eligible);
 
-  var today = new Date();
   today.setHours(0, 0, 0, 0);
   eligible.setHours(0, 0, 0, 0);
   payload.canRequest = today >= eligible;
@@ -164,18 +187,17 @@ var SUBMIT_FIELD_LABELS = {
   encodedBy: "Encoded By"
 };
 
-/** Philippine mobile: 11 digits only (09XXXXXXXXX). */
-var PH_MOBILE_LENGTH = 11;
+/** Max length for contact number. */
+var CONTACT_MAX_LENGTH = 11;
 
-function isValidPhilippineContactNumber(value) {
-  if (!value || typeof value !== "string") return false;
-  var digits = String(value).replace(/\D/g, "");
-  return digits.length === PH_MOBILE_LENGTH && digits.charAt(0) === "0" && digits.charAt(1) === "9";
+function isValidContactNumber(value) {
+  if (!value || typeof value !== "string") return true; // empty is OK (optional field)
+  return String(value).trim().length <= CONTACT_MAX_LENGTH;
 }
 
 /**
  * Validates required submission params. Returns { valid: true } or { valid: false, message: string }.
- * Contact number, when provided, must be 11 digits starting with 09.
+ * Contact number, when provided, must be at most 11 characters.
  */
 function validateSubmitParams(params) {
   var missing = [];
@@ -187,10 +209,10 @@ function validateSubmitParams(params) {
   if (missing.length > 0) return { valid: false, message: "Missing required fields: " + missing.join(", ") + "." };
 
   var contactVal = (params.contactNumber || "").trim();
-  if (contactVal && !isValidPhilippineContactNumber(contactVal)) {
+  if (contactVal && !isValidContactNumber(contactVal)) {
     return {
       valid: false,
-      message: "Contact Number must be 11 digits starting with 09 (e.g. 09171234567)."
+      message: "Contact Number must be at most 11 characters."
     };
   }
   return { valid: true };
@@ -299,11 +321,19 @@ function doGet(e) {
 function getNextSequenceResponse(dateYyyymmdd, params) {
   params = params || {};
   try {
-    var sheetResult = getSheetOrError();
-    if (sheetResult.error) {
-      return jsonResponse({ nextSeq: null, status: "error", message: sheetResult.error }, params);
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    if (!ss) {
+      return jsonResponse({ nextSeq: null, status: "error", message: "No spreadsheet available." }, params);
     }
-    var sheet = sheetResult.sheet;
+    var year = String(dateYyyymmdd || "").substring(0, 4);
+    var sheet = year ? ss.getSheetByName("AICS " + year) || ss.getSheetByName("AICS_" + year) : null;
+    if (!sheet) {
+      var sheetResult = getSheetOrError();
+      if (sheetResult.error) {
+        return jsonResponse({ nextSeq: null, status: "error", message: sheetResult.error }, params);
+      }
+      sheet = sheetResult.sheet;
+    }
     var lastRow = sheet.getLastRow();
     var payload;
     if (lastRow < 2) {
