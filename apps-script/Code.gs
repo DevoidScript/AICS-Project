@@ -14,11 +14,11 @@ function getSheetOrError() {
   }
 }
 
-/** Cooldown months per type. Burial has no cooldown (null). Medicine is 12 months. */
+/** Cooldown months per type. Burial has no cooldown (null). Medicine, Laboratory, Hospital Bill, Confinement = 12 months. */
 function getCooldownMonths(typeOfAssistance) {
   var t = (typeOfAssistance || "").trim();
   if (t === "Maintenance" || t === "Dialysis" || t === "Chemotherapy") return 6;
-  if (t === "Medicine") return 12;
+  if (t === "Medicine" || t === "Laboratory" || t === "Hospital Bill" || t === "Confinement") return 12;
   return null; // Burial or unknown: no cooldown
 }
 

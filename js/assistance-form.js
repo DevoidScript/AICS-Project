@@ -101,8 +101,8 @@ function fetchNextSequenceFromSheet(yyyymmdd) {
   });
 }
 
-/** Cooldown types: Maintenance/Dialysis/Chemotherapy = 6 months, Medicine = 1 year. Burial has no cooldown. */
-var COOLDOWN_TYPES = { "Maintenance": true, "Dialysis": true, "Chemotherapy": true, "Medicine": true };
+/** Cooldown types: Maintenance/Dialysis/Chemotherapy = 6 months, Medicine/Laboratory/Hospital Bill/Confinement = 1 year. Burial has no cooldown. */
+var COOLDOWN_TYPES = { "Maintenance": true, "Dialysis": true, "Chemotherapy": true, "Medicine": true, "Laboratory": true, "Hospital Bill": true, "Confinement": true };
 
 /** Message shown when eligibility check fails (timeout, network, or invalid response). */
 var ELIGIBILITY_CHECK_FAILED_MSG = "Could not verify eligibility. Please check your connection and try again.";
