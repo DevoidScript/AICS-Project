@@ -101,8 +101,8 @@ function fetchNextSequenceFromSheet(yyyymmdd) {
   });
 }
 
-/** Cooldown types: Maintenance/Dialysis/Chemotherapy = 6 months, Medicine/Laboratory/Hospital Bill/Confinement = 1 year. Burial has no cooldown. */
-var COOLDOWN_TYPES = { "Maintenance": true, "Dialysis": true, "Chemotherapy": true, "Medicine": true, "Laboratory": true, "Hospital Bill": true, "Confinement": true };
+/** Cooldown types: Maintenance/Dialysis/Chemotherapy = 6 months, Medicine/Laboratory/Hospital Bill/Confinement/Others = 1 year. Burial has no cooldown. */
+var COOLDOWN_TYPES = { "Maintenance": true, "Dialysis": true, "Chemotherapy": true, "Medicine": true, "Laboratory": true, "Hospital Bill": true, "Confinement": true, "Others": true };
 
 /** Message shown when eligibility check fails (timeout, network, or invalid response). */
 var ELIGIBILITY_CHECK_FAILED_MSG = "Could not verify eligibility. Please check your connection and try again.";
@@ -274,6 +274,15 @@ function getFormData() {
   var first = document.getElementById("claimantFirstName").value.trim();
   var mid   = document.getElementById("claimantMiddleName").value.trim();
   var claimantFull = last + (first ? ", " + first : "") + (mid ? " " + mid : "");
+  var typeOfAssistance = document.getElementById("typeOfAssistance").value;
+  var remark = document.getElementById("remark").value.trim();
+  var othersSpec = document.getElementById("othersSpecification").value.trim();
+  
+  // If "Others" is selected, prepend specification to remark
+  if (typeOfAssistance === "Others" && othersSpec) {
+    remark = remark ? othersSpec + " – " + remark : othersSpec;
+  }
+  
   return {
     idNumber:             document.getElementById("idNumber").value.trim(),
     date:                 document.getElementById("date").value,
@@ -284,9 +293,9 @@ function getFormData() {
     claimantMiddleName:   mid,
     claimant:             claimantFull,
     contactNumber:        (document.getElementById("contactNumber") && document.getElementById("contactNumber").value) ? document.getElementById("contactNumber").value.trim() : "",
-    typeOfAssistance:     document.getElementById("typeOfAssistance").value,
+    typeOfAssistance:     typeOfAssistance,
     code:                 document.getElementById("code").value.trim(),
-    remark:               document.getElementById("remark").value.trim(),
+    remark:               remark,
     encodedBy:            document.getElementById("encodedBy").value.trim()
   };
 }
@@ -344,6 +353,17 @@ function validateForm(data) {
       message: "Contact Number must be at most 11 characters.",
       missing: missing
     };
+  }
+  // Check if "Others" is selected and specification is provided
+  if (data.typeOfAssistance === "Others") {
+    var othersSpecEl = document.getElementById("othersSpecification");
+    if (!othersSpecEl || !othersSpecEl.value.trim()) {
+      return {
+        valid: false,
+        message: "Please specify the type of assistance under Others.",
+        missing: missing
+      };
+    }
   }
   if (missing.length === 0) return { valid: true };
   return {
@@ -674,6 +694,12 @@ document.getElementById("cooldownWarningModal").addEventListener("click", functi
 function clearFormAndFetchNextTxn() {
   document.getElementById("assistanceForm").reset();
   document.getElementById("date").valueAsDate = new Date();
+  var othersSpecEl = document.getElementById("othersSpecification");
+  if (othersSpecEl) {
+    othersSpecEl.style.display = "none";
+    othersSpecEl.removeAttribute("required");
+    othersSpecEl.value = "";
+  }
   showEligibilityMessage({ message: "" });
   updateTransactionNumber();
 }
@@ -691,6 +717,21 @@ document.getElementById("date").addEventListener("change", function() {
 document.getElementById("typeOfAssistance").addEventListener("change", function() {
   setTransactionNumberTypeCode();
   runEligibilityCheck();
+  
+  // Show/hide Others specification input
+  var othersSpecEl = document.getElementById("othersSpecification");
+  if (this.value === "Others") {
+    if (othersSpecEl) {
+      othersSpecEl.style.display = "block";
+      othersSpecEl.setAttribute("required", "required");
+    }
+  } else {
+    if (othersSpecEl) {
+      othersSpecEl.style.display = "none";
+      othersSpecEl.removeAttribute("required");
+      othersSpecEl.value = "";
+    }
+  }
 });
 
 function runEligibilityCheck() {
