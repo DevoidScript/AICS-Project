@@ -321,8 +321,9 @@ function doGet(e) {
     var lastRow = sheet.getLastRow();
     var dRange = sheet.getRange(lastRow, 1, lastRow, 11);
     dRange.setHorizontalAlignment("center");
-    dRange.setFontSize(12);
+    dRange.setFontSize(11);
     dRange.setFontFamily("Calibri");
+    dRange.setFontWeight("normal");
 
     return jsonResponse({ status: "success" }, params);
   } catch (err) {
