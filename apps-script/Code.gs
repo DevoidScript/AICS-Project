@@ -14,12 +14,63 @@ function getSheetOrError() {
   }
 }
 
-/** Cooldown months per type (case-insensitive). Burial has no cooldown (null). Medicine, Laboratory, Hospital Bill, Confinement, Others = 12 months. */
 function getCooldownMonths(typeOfAssistance) {
   var t = (typeOfAssistance || "").trim().toLowerCase();
-  if (t === "maintenance" || t === "dialysis" || t === "chemotherapy") return 6;
-  if (t === "medicine" || t === "laboratory" || t === "hospital bill" || t === "confinement" || t === "others") return 12;
-  return null; // Burial or unknown: no cooldown
+
+  if (
+    t.includes("maintenance") ||
+    t.includes("dialysis") ||
+    t.includes("chemotherapy")
+  ) return 6;
+
+  if (
+    t.includes("medicine") ||
+    t.includes("laboratory") ||
+    t.includes("hospital bill") ||
+    t.includes("confinement") ||
+    t.includes("others")
+  ) return 12;
+
+  // Legacy "Others" entries stored as long descriptions (old records)
+  // that don't match any known type above are treated as Others (12 months)
+  if (
+    t.includes("referral") ||
+    t.includes("survivor") ||
+    t.includes("detained") ||
+    t.includes("peso") ||
+    t.includes("letter") ||
+    t.includes("refer") ||
+    t.includes("partially") 
+    // Add more legacy keywords here as needed
+  ) return 12;
+
+  return null;
+}
+
+/**
+ * Normalizes a stored type of assistance label for display in messages.
+ * Known proper types are returned as-is (trimmed).
+ * Legacy long descriptions (old records) are simplified to "Others".
+ */
+function normalizeTypeLabel(typeOfAssistance) {
+  var t = (typeOfAssistance || "").trim().toLowerCase();
+
+  if (
+    t.includes("medicine") ||
+    t.includes("laboratory") ||
+    t.includes("hospital bill") ||
+    t.includes("confinement") ||
+    t.includes("maintenance") ||
+    t.includes("dialysis") ||
+    t.includes("chemotherapy") ||
+    t.includes("burial") ||
+    t.includes("others")
+  ) {
+    return (typeOfAssistance || "").trim();
+  }
+
+  // Anything unrecognized (legacy long descriptions) = "Others"
+  return "Others";
 }
 
 /**
