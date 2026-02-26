@@ -701,91 +701,55 @@ function buildPrintArea(data) {
   document.getElementById("printable-area").innerHTML = getSlipHtml(data);
 }
 
-/* ── Download PDF: single page — table on top, printable slip below ── */
-function downloadAsPDF(data) {
-  var jsPDF = window.jspdf.jsPDF;
-  var doc = new jsPDF({ unit: "mm", format: "a4", orientation: "landscape" });
+/* ── Download PDF: slip-only backup, using jsPDF only ── */
+function downloadAsPDF() {
+  var data = capitalizeFormData(getFormData());
+  var jsPDF = window.jspdf && window.jspdf.jsPDF;
+  if (!jsPDF) {
+    showToast("PDF export unavailable (jsPDF not loaded).", "error");
+    return;
+  }
+
+  var doc = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
   var pageW = doc.internal.pageSize.getWidth();
   var pageH = doc.internal.pageSize.getHeight();
-  var margin = 12;
-  var usableW = pageW - margin * 2;
-  var colW = usableW / COLUMNS.length;
-  var y = 18;
+  var margin = 15;
+  var slipLabelW = 40;
+  var lineH = 6;
+  var slipFontSize = 9;
+  var y = margin;
 
-  /* ── Top: Table form ── */
-  doc.setFont("times", "bold"); doc.setFontSize(14); doc.setTextColor(26, 58, 42);
-  doc.text("Social Welfare & Development Office", pageW / 2, y, { align: "center" });
-  y += 6;
-  doc.setFont("times", "normal"); doc.setFontSize(9); doc.setTextColor(100, 92, 80);
-  doc.text("Assistance Record", pageW / 2, y, { align: "center" });
-  y += 4;
-  doc.setDrawColor(26, 58, 42); doc.setLineWidth(0.6);
-  doc.line(margin, y, pageW - margin, y); y += 7;
-
-  var headerH = 9;
-  doc.setFillColor(26, 58, 42); doc.rect(margin, y, usableW, headerH, "F");
-  doc.setTextColor(255, 255, 255); doc.setFontSize(7); doc.setFont("helvetica", "bold");
-  COLUMNS.forEach(function(col, i) {
-    doc.text(col.label.toUpperCase(), margin + i * colW + colW / 2, y + 6, { align: "center" });
-  });
-  y += headerH;
-
-  var dataH = 10;
-  doc.setFillColor(250, 248, 244); doc.rect(margin, y, usableW, dataH, "F");
-  doc.setTextColor(28, 26, 23); doc.setFontSize(8); doc.setFont("helvetica", "normal");
-  COLUMNS.forEach(function(col, i) {
-    var val = getCellValue(col, data);
-    var x = margin + i * colW;
-    doc.setDrawColor(200, 193, 183); doc.setLineWidth(0.2); doc.rect(x, y, colW, dataH);
-    var maxC = Math.floor(colW / 2.0);
-    var display = val.length > maxC ? val.substring(0, maxC - 1) + "..." : val;
-    doc.text(display, x + colW / 2, y + 6.5, { align: "center" });
-  });
-  y += dataH + 8;
-
-  doc.setDrawColor(26, 58, 42); doc.setLineWidth(0.3);
-  doc.line(margin, y, pageW - margin, y); y += 5;
-  doc.setFontSize(7.5); doc.setTextColor(100, 92, 80);
-  var today = new Date().toLocaleDateString("en-PH", { year: "numeric", month: "long", day: "numeric" });
-  doc.text("Date Generated: " + today, margin, y);
-  doc.text("This document is system-generated.", pageW - margin, y, { align: "right" });
-  y += 12;
-
-  /* ── Bottom (same page): Compact printable slip ── */
-  var slipMargin = margin;
-  var slipW = usableW;
-  var slipLabelW = 32;
-  var lineH = 4;
-  var slipFontSize = 7;
-
-  doc.setDrawColor(0, 0, 0);
-  doc.setLineWidth(0.25);
-  doc.rect(slipMargin, y, slipW, pageH - y - margin);
-  y += 4;
-
+  // Title
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(slipFontSize + 1);
+  doc.setFontSize(12);
   doc.text("ASSISTANCE TO INDIVIDUALS IN CRISIS SITUATIONS", pageW / 2, y, { align: "center" });
-  y += 4;
+  y += 6;
+
+  // Optional subheading
+  doc.setFontSize(9);
+  doc.text("SLIP COPY", pageW / 2, y, { align: "center" });
+  y += 6;
+
+  // Divider
   doc.setDrawColor(0, 0, 0);
   doc.setLineWidth(0.2);
-  doc.line(slipMargin + 2, y, pageW - slipMargin - 2, y);
-  y += 4;
+  doc.line(margin, y, pageW - margin, y);
+  y += 5;
 
   function slipLine(label, value) {
     var val = (value !== undefined && value !== null && value !== "") ? String(value) : "";
     doc.setFont("helvetica", "bold");
     doc.setFontSize(slipFontSize);
-    doc.text(label + ":", slipMargin + 2, y + 2.5);
+    doc.text(label + ":", margin, y);
     doc.setFont("helvetica", "normal");
     doc.setDrawColor(0, 0, 0);
     doc.setLineWidth(0.15);
-    doc.line(slipMargin + slipLabelW, y + 2.8, pageW - slipMargin - 2, y + 2.8);
-    doc.text(val, slipMargin + slipLabelW + 2, y + 2.5);
+    doc.line(margin + slipLabelW, y + 1.5, pageW - margin, y + 1.5);
+    doc.text(val, margin + slipLabelW + 2, y);
     y += lineH;
   }
 
-  slipLine("Code", data.code);
+  slipLine("Code", data.code || "");
   slipLine("Transaction No.", data.idNumber);
   slipLine("Date", (formatDate(data.date) || "").toUpperCase());
   slipLine("Name of Patient", data.patientName);
@@ -794,19 +758,52 @@ function downloadAsPDF(data) {
   slipLine("Type / Purpose", data.typeOfAssistance);
   slipLine("Claimant", data.claimant);
   slipLine("Remark", data.remark || "-");
-  y += 3;
+  y += 4;
 
+  // Signature section
   doc.setFont("helvetica", "normal");
   doc.setFontSize(slipFontSize);
-  doc.text(data.claimant || "", pageW / 2, y + 2.5, { align: "center" });
-  doc.line(slipMargin + (slipW - 40) / 2, y + 4, pageW - slipMargin - (slipW - 40) / 2, y + 4);
-  y += 5;
-  doc.setFontSize(5.5);
-  doc.setTextColor(80, 80, 80);
+  var sigLineWidth = 60;
+  var sigXStart = (pageW - sigLineWidth) / 2;
+  var sigXEnd = sigXStart + sigLineWidth;
+  doc.text(data.claimant || "", pageW / 2, y + 2, { align: "center" });
+  doc.line(sigXStart, y + 3, sigXEnd, y + 3);
+  y += 7;
+  doc.setFontSize(8);
   doc.text("Signature Over Printed Name", pageW / 2, y, { align: "center" });
+
+  // Footer note
+  y += 10;
+  doc.setFontSize(7);
+  doc.setTextColor(90, 90, 90);
+  var footer = "This slip is generated from the AICS Assistance Record Entry System for backup/reference purposes.";
+  doc.text(footer, pageW / 2, y, { align: "center", maxWidth: pageW - margin * 2 });
 
   doc.setTextColor(0, 0, 0);
   doc.save("SWDO_" + data.idNumber.replace(/[^a-zA-Z0-9]/g, "_") + "_" + data.date + ".pdf");
+}
+
+/* ── Download CSV: Excel-friendly one-row export ── */
+function downloadAsCSV(data) {
+  var headers = COLUMNS.map(function(col) {
+    return '"' + col.label.replace(/"/g, '""') + '"';
+  }).join(",");
+
+  var row = COLUMNS.map(function(col) {
+    var val = getCellValue(col, data) || "";
+    return '"' + String(val).replace(/"/g, '""') + '"';
+  }).join(",");
+
+  var csv = headers + "\r\n" + row;
+  var blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement("a");
+  a.href = url;
+  a.download = "SWDO_" + data.idNumber.replace(/[^a-zA-Z0-9]/g, "_") + "_" + data.date + ".csv";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 /* FORM SUBMIT */
@@ -896,8 +893,15 @@ document.getElementById("printBtn").addEventListener("click", function() {
 });
 
 document.getElementById("downloadPdf").addEventListener("click", function() {
-  downloadAsPDF(capitalizeFormData(getFormData()));
+  downloadAsPDF();
 });
+
+var csvBtn = document.getElementById("downloadCsv");
+if (csvBtn) {
+  csvBtn.addEventListener("click", function() {
+    downloadAsCSV(capitalizeFormData(getFormData()));
+  });
+}
 
 function closePreviewModalAndClearForm() {
   document.getElementById("pdfModal").classList.remove("open");
