@@ -283,8 +283,96 @@ function validateSubmitParams(params) {
   return { valid: true };
 }
 
+/**
+ * Returns ALL records from ALL AICS sheets for offline cache (3 fields only).
+ * Reads each sheet in batches to avoid limits and ensure every row is included.
+ * Query: ?action=getAllRecords
+ * Response: { fetchedAt: "ISO date", records: [ { patientName, date, typeOfAssistance }, ... ] }
+ */
+function getGetAllRecordsResponse(params) {
+  params = params || {};
+  var BATCH_SIZE = 1000;
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    if (!ss) {
+      return jsonResponse({ fetchedAt: null, records: [], status: "error", message: "No spreadsheet." }, params);
+    }
+    var allSheets = ss.getSheets();
+    var records = [];
+    var now = new Date();
+    var fetchedAt = now.toISOString ? now.toISOString() : Utilities.formatDate(now, Session.getScriptTimeZone() || "Asia/Manila", "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
+
+    // Cutoff: only include rows from the last 12 months
+    var cutoffDate = new Date(now.getTime());
+    cutoffDate.setMonth(cutoffDate.getMonth() - 12);
+    cutoffDate.setHours(0, 0, 0, 0);
+
+    for (var s = 0; s < allSheets.length; s++) {
+      var sheet = allSheets[s];
+      var sheetName = sheet.getName().trim();
+      if (sheetName.indexOf("AICS_") !== 0 && sheetName.indexOf("AICS ") !== 0) continue;
+      var lastRow = sheet.getLastRow();
+      if (lastRow < 2) continue;
+
+      var startRow = 2;
+      while (startRow <= lastRow) {
+        var endRow = Math.min(startRow + BATCH_SIZE - 1, lastRow);
+        var numRows = endRow - startRow + 1;
+        var data = sheet.getRange(startRow, 1, numRows, 7).getValues();
+        for (var i = 0; i < data.length; i++) {
+          var row = data[i];
+
+          var dateVal = row[1];
+          if (!dateVal) continue;
+
+          var d = dateVal instanceof Date ? dateVal : new Date(dateVal);
+          if (isNaN(d.getTime())) continue;
+          d.setHours(0, 0, 0, 0);
+
+          // Skip records older than 12 months from today
+          if (d < cutoffDate) continue;
+
+          var patientName = String(row[2] || "").trim();
+          if (!patientName) continue; // only cache rows that have a patient/deceased name
+
+          var y = d.getFullYear();
+          var m = d.getMonth() + 1;
+          var day = d.getDate();
+          var dateStr = y + "-" + (m < 10 ? "0" : "") + m + "-" + (day < 10 ? "0" : "") + day;
+
+          var typeOfAssistance = String(row[6] || "").trim();
+          records.push({ patientName: patientName, date: dateStr, typeOfAssistance: typeOfAssistance });
+        }
+        startRow = endRow + 1;
+      }
+    }
+
+    return jsonResponse({ fetchedAt: fetchedAt, records: records }, params);
+  } catch (err) {
+    var errMsg = (err && err.message) ? err.message : "Could not fetch records.";
+    return jsonResponse({ fetchedAt: null, records: [], status: "error", message: errMsg }, params);
+  }
+}
+
+/**
+ * Ping endpoint to confirm real connectivity (for offline detection).
+ * Query: ?action=ping
+ */
+function getPingResponse(params) {
+  params = params || {};
+  return jsonResponse({ status: "ok" }, params);
+}
+
 function doGet(e) {
   var params = (e && e.parameter) || {};
+
+  if (params.action === "ping") {
+    return getPingResponse(params);
+  }
+
+  if (params.action === "getAllRecords") {
+    return getGetAllRecordsResponse(params);
+  }
 
   // Endpoint: get next transaction sequence for a date (source of truth from sheet)
   if (params.action === "getNextSeq" && params.date) {

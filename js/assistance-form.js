@@ -1,15 +1,189 @@
 var APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbynmrEpTPH6xGGsQKVtRDi6zTKvXUE3WqmUVlXmAR0VF6Ne2LcqzGGeMzc2kSgrjVacnA/exec";
 
+// --- Offline storage keys ---
+var STORAGE_KEY_QUEUE      = "assistanceForm_offlineQueue";
+var STORAGE_KEY_ELIG_CACHE = "assistanceForm_eligibilityCache";
+var STORAGE_KEY_LAST_DATA  = "assistanceForm_lastPreviewData";
+var ELIG_CACHE_TTL_MS      = 5 * 60 * 1000; // 5 minutes
+
+// --- Online/offline detection ---
+function isOnline() { return navigator.onLine; }
+
+// --- Offline queue helpers ---
+function getOfflineQueue() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY_QUEUE) || "[]"); }
+  catch (e) { return []; }
+}
+function saveOfflineQueue(q) { localStorage.setItem(STORAGE_KEY_QUEUE, JSON.stringify(q)); }
+function enqueueOffline(data) {
+  var q = getOfflineQueue();
+  q.push({ data: data, queuedAt: new Date().toISOString() });
+  saveOfflineQueue(q);
+  updateOfflineBanner();
+}
+
+function updateOfflineBanner() {
+  var banner = document.getElementById("offlineBanner");
+  var queueBadge = document.getElementById("queueBadge");
+  if (banner) banner.style.display = isOnline() ? "none" : "flex";
+  if (queueBadge) {
+    var q = getOfflineQueue();
+    queueBadge.textContent = q.length > 0 ? q.length + " queued" : "";
+    queueBadge.style.display = q.length > 0 ? "inline-block" : "none";
+  }
+}
+
+window.addEventListener("online", function () {
+  updateOfflineBanner();
+  showToast("You're back online! Syncing queued records…", "info");
+  setTimeout(flushOfflineQueue, 800);
+});
+window.addEventListener("offline", function () {
+  updateOfflineBanner();
+  showToast("You are offline. Submissions will be queued.", "warn");
+});
+
+// --- Eligibility cache helpers ---
+function buildEligCacheKey(patient, type) { return (patient + "|" + type).toLowerCase(); }
+function getCachedEligibility(patient, type) {
+  try {
+    var cache = JSON.parse(localStorage.getItem(STORAGE_KEY_ELIG_CACHE) || "{}");
+    var entry = cache[buildEligCacheKey(patient, type)];
+    if (!entry || Date.now() - entry.ts > ELIG_CACHE_TTL_MS) return null;
+    return entry.result;
+  } catch (e) { return null; }
+}
+function setCachedEligibility(patient, type, result) {
+  try {
+    var cache = JSON.parse(localStorage.getItem(STORAGE_KEY_ELIG_CACHE) || "{}");
+    cache[buildEligCacheKey(patient, type)] = { result: result, ts: Date.now() };
+    localStorage.setItem(STORAGE_KEY_ELIG_CACHE, JSON.stringify(cache));
+  } catch (e) {}
+}
+
+// --- Local cooldown check (mirrors server logic) ---
+function getCooldownMonthsLocal(type) {
+  var t = (type || "").trim().toLowerCase();
+  if (t === "maintenance" || t === "dialysis" || t === "chemotherapy") return 6;
+  if (t === "medicine" || t === "laboratory" || t === "hospital bill" || t === "confinement") return 12;
+  return null;
+}
+
+function formatDateISO(d) {
+  if (!d) return "";
+  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+}
+
+// Check the offline queue itself for eligibility conflicts
+function checkQueueForEligibility(patientName, typeOfAssistance) {
+  var queue = getOfflineQueue();
+  var pLower = (patientName || "").trim().toLowerCase();
+  var blockingEligibleDate = null, blockingRequestDate = null, blockingType = null;
+  queue.forEach(function (item) {
+    var d = item.data;
+    if (!d || (d.patientName || "").trim().toLowerCase() !== pLower) return;
+    var rc = getCooldownMonthsLocal(d.typeOfAssistance);
+    if (rc === null) return;
+    var rowDate = new Date(d.date + "T00:00:00");
+    if (isNaN(rowDate.getTime())) return;
+    var eligible = new Date(rowDate);
+    eligible.setMonth(eligible.getMonth() + rc);
+    eligible.setDate(eligible.getDate() + 1);
+    if (!blockingEligibleDate || eligible > blockingEligibleDate) {
+      blockingEligibleDate = eligible;
+      blockingRequestDate = rowDate;
+      blockingType = d.typeOfAssistance;
+    }
+  });
+  if (!blockingEligibleDate) return null;
+  var today = new Date(); today.setHours(0, 0, 0, 0);
+  var el = new Date(blockingEligibleDate); el.setHours(0, 0, 0, 0);
+  var canRequest = today >= el;
+  return {
+    hasRecord: true, canRequest: canRequest, typeOfAssistance: blockingType,
+    lastRequestDate: formatDateISO(blockingRequestDate),
+    lastRequestDateReadable: formatDate(formatDateISO(blockingRequestDate)),
+    eligibleAgainDate: formatDateISO(blockingEligibleDate),
+    eligibleAgainDateReadable: formatDate(formatDateISO(blockingEligibleDate)),
+    message: canRequest
+      ? "A previous " + blockingType + " request is queued. You may still submit."
+      : "This patient has a queued " + blockingType + " request. They may request again on " + formatDate(formatDateISO(blockingEligibleDate)) + ".",
+    fromQueue: true
+  };
+}
+
+// --- Auto-sync when back online ---
+var _flushLock = false;
+function flushOfflineQueue() {
+  if (_flushLock || !isOnline()) return;
+  var queue = getOfflineQueue();
+  if (queue.length === 0) return;
+  _flushLock = true;
+  showToast("Syncing " + queue.length + " queued record(s)…", "info");
+  function processNext(remaining, ok, fail) {
+    if (remaining.length === 0) {
+      _flushLock = false;
+      updateOfflineBanner();
+      if (ok > 0) { showToast(ok + " record(s) synced to Google Sheets!", "success"); updateTransactionNumber(); }
+      if (fail > 0) showToast(fail + " record(s) could not sync. They remain queued.", "error");
+      return;
+    }
+    var item = remaining[0];
+    sendToSheet(item.data).then(function (result) {
+      if (result.status === "success") {
+        var cur = getOfflineQueue().filter(function (q) { return q.data.idNumber !== item.data.idNumber; });
+        saveOfflineQueue(cur);
+        processNext(remaining.slice(1), ok + 1, fail);
+      } else {
+        processNext(remaining.slice(1), ok, fail + 1);
+      }
+    });
+  }
+  processNext(queue, 0, 0);
+}
+
 var STORAGE_KEY_TXN = "assistanceForm_currentTransactionNumber";
+var PENDING_TXNS_KEY = "aicsPendingTxns";
+
+function getPendingTxns() {
+  try {
+    var raw = localStorage.getItem(PENDING_TXNS_KEY);
+    if (!raw) return [];
+    var arr = JSON.parse(raw);
+    return Array.isArray(arr) ? arr : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function addPendingTxn(idNumber) {
+  var arr = getPendingTxns();
+  if (arr.indexOf(idNumber) === -1) arr.push(idNumber);
+  localStorage.setItem(PENDING_TXNS_KEY, JSON.stringify(arr));
+}
+
+function removePendingTxn(idNumber) {
+  var arr = getPendingTxns().filter(function(id) { return id !== idNumber; });
+  localStorage.setItem(PENDING_TXNS_KEY, JSON.stringify(arr));
+}
+
+function setStoredTransactionNumber(value, isPending) {
+  var el = document.getElementById("idNumber");
+  if (el) {
+    el.value = value || "";
+    if (isPending) {
+      el.classList.add("txn-pending");
+      if (value) addPendingTxn(value);
+    } else {
+      el.classList.remove("txn-pending");
+      if (value) removePendingTxn(value);
+    }
+  }
+  if (value) localStorage.setItem(STORAGE_KEY_TXN, value);
+}
 
 function getStoredTransactionNumber() {
   return localStorage.getItem(STORAGE_KEY_TXN) || "";
-}
-
-function setStoredTransactionNumber(value) {
-  var el = document.getElementById("idNumber");
-  if (el) el.value = value || "";
-  if (value) localStorage.setItem(STORAGE_KEY_TXN, value);
 }
 
 var COLUMNS = [
@@ -56,6 +230,7 @@ var GET_NEXT_SEQ_ERROR_MSG = "Could not load next number from sheet. Check conne
  * @returns {Promise<number|null>} Next sequence (1-based) or null on error
  */
 function fetchNextSequenceFromSheet(yyyymmdd) {
+  if (!isOnline()) return Promise.resolve(null);
   return new Promise(function(resolve) {
     var callbackName = "__aicsCb" + Date.now();
     var script;
@@ -109,49 +284,96 @@ var ELIGIBILITY_CHECK_FAILED_MSG = "Could not verify eligibility. Please check y
 
 /**
  * Check eligibility for patient + type (cooldown).
- * Returns Promise<{ hasRecord, lastRequestDate, eligibleAgainDate, canRequest, message, eligibilityCheckFailed? }>.
- * On timeout, network error, or invalid response, resolves with eligibilityCheckFailed: true and a user-facing message.
+ * Returns Promise<{ hasRecord, lastRequestDate, eligibleAgainDate, canRequest, message, eligibilityCheckFailed?, fromCache?, fromQueue? }>.
+ * Uses offline queue + cached results when offline or when server fails.
  */
 function checkEligibility(patientName, typeOfAssistance) {
-  return new Promise(function(resolve) {
+  return new Promise(function (resolve) {
     patientName = (patientName || "").trim();
     typeOfAssistance = (typeOfAssistance || "").trim();
     if (!patientName || !typeOfAssistance || !COOLDOWN_TYPES[typeOfAssistance]) {
       resolve({ hasRecord: false, canRequest: true, message: "" });
       return;
     }
+
+    // Always check offline queue first
+    var queueResult = checkQueueForEligibility(patientName, typeOfAssistance);
+    if (queueResult && !queueResult.canRequest) { resolve(queueResult); return; }
+
+    if (!isOnline()) {
+      var offlineCacheResult = null;
+      try {
+        if (typeof window.AICS_checkEligibilityOffline === "function") {
+          offlineCacheResult = window.AICS_checkEligibilityOffline(patientName, typeOfAssistance);
+        }
+      } catch (e) { offlineCacheResult = null; }
+
+      if (offlineCacheResult && offlineCacheResult.hasRecord && !offlineCacheResult.canRequest) {
+        resolve(Object.assign({}, offlineCacheResult, { fromCache: true }));
+        return;
+      }
+
+      var cached = getCachedEligibility(patientName, typeOfAssistance);
+      if (cached && !cached.canRequest) { resolve(Object.assign({}, cached, { fromCache: true })); return; }
+      if (queueResult) { resolve(queueResult); return; }
+      if (offlineCacheResult && !offlineCacheResult.cacheEmpty) { resolve(Object.assign({}, offlineCacheResult, { fromCache: true })); return; }
+      if (cached) { resolve(Object.assign({}, cached, { fromCache: true })); return; }
+      resolve({ hasRecord: false, canRequest: true, message: "Offline: eligibility check skipped. Please verify manually.", eligibilityCheckFailed: true });
+      return;
+    }
+
     var callbackName = "__aicsEligibility" + Date.now();
-    var timeout = setTimeout(function() {
+    var script;
+    var timeout = setTimeout(function () {
       if (window[callbackName]) {
         window[callbackName] = null;
-        try { if (script.parentNode) document.body.removeChild(script); } catch (e) {}
-        resolve({ hasRecord: false, canRequest: true, message: ELIGIBILITY_CHECK_FAILED_MSG, eligibilityCheckFailed: true });
-      }
-    }, 10000);
-    window[callbackName] = function(data) {
-      clearTimeout(timeout);
-      window[callbackName] = null;
-      try {
-        if (script.parentNode) document.body.removeChild(script);
-      } catch (e) {}
-      try {
-        if (typeof data === "object" && data !== null) {
-          resolve(data);
+        try { if (script && script.parentNode) document.body.removeChild(script); } catch (e) {}
+        var cachedTimeout = getCachedEligibility(patientName, typeOfAssistance);
+        if (cachedTimeout) {
+          resolve(Object.assign({}, cachedTimeout, { fromCache: true }));
         } else {
           resolve({ hasRecord: false, canRequest: true, message: ELIGIBILITY_CHECK_FAILED_MSG, eligibilityCheckFailed: true });
         }
+      }
+    }, 10000);
+
+    window[callbackName] = function (data) {
+      clearTimeout(timeout);
+      window[callbackName] = null;
+      try {
+        if (script && script.parentNode) document.body.removeChild(script);
+      } catch (e) {}
+      try {
+        if (typeof data === "object" && data !== null) {
+          setCachedEligibility(patientName, typeOfAssistance, data);
+          resolve(data);
+        } else {
+          var cachedInner = getCachedEligibility(patientName, typeOfAssistance);
+          if (cachedInner) {
+            resolve(Object.assign({}, cachedInner, { fromCache: true }));
+          } else {
+            resolve({ hasRecord: false, canRequest: true, message: ELIGIBILITY_CHECK_FAILED_MSG, eligibilityCheckFailed: true });
+          }
+        }
       } catch (e) {
-        resolve({ hasRecord: false, canRequest: true, message: ELIGIBILITY_CHECK_FAILED_MSG, eligibilityCheckFailed: true });
+        var cachedCatch = getCachedEligibility(patientName, typeOfAssistance);
+        if (cachedCatch) {
+          resolve(Object.assign({}, cachedCatch, { fromCache: true }));
+        } else {
+          resolve({ hasRecord: false, canRequest: true, message: ELIGIBILITY_CHECK_FAILED_MSG, eligibilityCheckFailed: true });
+        }
       }
     };
+
     var url = APPS_SCRIPT_URL + "?action=checkEligibility&patientName=" + encodeURIComponent(patientName) +
       "&typeOfAssistance=" + encodeURIComponent(typeOfAssistance) + "&callback=" + callbackName + "&_=" + Date.now();
-    var script = document.createElement("script");
-    script.onerror = function() {
+    script = document.createElement("script");
+    script.onerror = function () {
       clearTimeout(timeout);
       window[callbackName] = null;
       try { if (script.parentNode) document.body.removeChild(script); } catch (e) {}
-      resolve({ hasRecord: false, canRequest: true, message: ELIGIBILITY_CHECK_FAILED_MSG, eligibilityCheckFailed: true });
+      var cached = getCachedEligibility(patientName, typeOfAssistance);
+      resolve(cached ? Object.assign({}, cached, { fromCache: true }) : { hasRecord: false, canRequest: true, message: ELIGIBILITY_CHECK_FAILED_MSG, eligibilityCheckFailed: true });
     };
     script.src = url;
     document.body.appendChild(script);
@@ -175,6 +397,8 @@ function showEligibilityMessage(result) {
     var type = result.typeOfAssistance || "";
     displayMessage = "This patient already has a " + type + " request on " + lastReadable + ". They may request again on " + eligibleReadable + ".";
   }
+  if (result.fromCache) displayMessage += " (cached)";
+  if (result.fromQueue) displayMessage += " (offline queue)";
   el.textContent = displayMessage;
   if (result.eligibilityCheckFailed) {
     el.className = "eligibility-message eligibility-info";
@@ -226,6 +450,16 @@ function generateTransactionNumber(overrideSeq) {
     seq = parseInt(localStorage.getItem(storageKey) || "0", 10) + 1;
     localStorage.setItem(storageKey, String(seq));
   }
+  var prefix = "AICS-" + yyyymmdd + "-";
+  var maxQSeq = 0;
+  getOfflineQueue().forEach(function (item) {
+    var id = (item.data && item.data.idNumber) || "";
+    if (id.indexOf(prefix) === 0) {
+      var s = parseInt(id.split("-").pop(), 10);
+      if (!isNaN(s)) maxQSeq = Math.max(maxQSeq, s);
+    }
+  });
+  if (seq <= maxQSeq) seq = maxQSeq + 1;
   var seqStr = String(seq).padStart(3, "0");
   return "AICS-" + yyyymmdd + "-" + seqStr;
 }
@@ -236,6 +470,10 @@ function generateTransactionNumber(overrideSeq) {
  * Falls back to localStorage-based generation if the request fails.
  */
 function updateTransactionNumber() {
+  if (!isOnline()) {
+    setStoredTransactionNumber(generateTransactionNumber());
+    return;
+  }
   var dateInput = document.getElementById("date");
   var dateStr = dateInput && dateInput.value ? dateInput.value : "";
   if (!dateStr) {
@@ -243,17 +481,17 @@ function updateTransactionNumber() {
     dateStr = today.getFullYear() + "-" + String(today.getMonth() + 1).padStart(2, "0") + "-" + String(today.getDate()).padStart(2, "0");
   }
   var yyyymmdd = dateStr.replace(/-/g, "");
-  // Clear field first so we never show a stale value before the sheet is checked
-  setStoredTransactionNumber("");
+  setStoredTransactionNumber("", false);
   fetchNextSequenceFromSheet(yyyymmdd).then(function(nextSeq) {
     var value;
     if (nextSeq !== null) {
       value = generateTransactionNumber(nextSeq);
       localStorage.removeItem("assistanceForm_seq_" + yyyymmdd);
+      setStoredTransactionNumber(value, false);
     } else {
       value = generateTransactionNumber();
+      setStoredTransactionNumber(value, true);
     }
-    setStoredTransactionNumber(value);
   });
 }
 
@@ -363,6 +601,7 @@ function validateForm(data) {
  */
 function sendToSheet(data) {
   return new Promise(function(resolve) {
+    if (!isOnline()) { resolve({ status: "offline" }); return; }
     var params = new URLSearchParams({
       idNumber: data.idNumber,
       date: data.date,
@@ -410,6 +649,7 @@ function sendToSheet(data) {
   });
 }
 
+
 /** Returns the printable slip HTML (used for both modal preview and print). */
 function getSlipHtml(data) {
   function field(labelText, value) {
@@ -427,6 +667,7 @@ function getSlipHtml(data) {
     "<div class='slip-header'>" +
       "<img class='slip-header-img' src='" + headerImg + "' alt='Municipality of Oton' />" +
     "</div>" +
+    (data._queued ? "<div style='background:#d97706;color:#fff;font-size:11px;padding:3px 10px;text-align:center;border-radius:3px;margin-bottom:6px;'>⚠ QUEUED – not yet synced to Google Sheets</div>" : "") +
     "<div class='slip-title'>Assistance to Individuals in Crisis Situations</div>" +
     "<div class='slip-body'>" +
       field("Code", data.code || "") +
@@ -578,8 +819,8 @@ document.getElementById("assistanceForm").addEventListener("submit", function(e)
     return;
   }
 
-  var btn = document.getElementById("submitBtn");
   var typeHasCooldown = COOLDOWN_TYPES[data.typeOfAssistance];
+  var btn = document.getElementById("submitBtn");
   if (typeHasCooldown) {
     btn.disabled = true;
     btn.textContent = "Checking...";
@@ -607,18 +848,34 @@ function doSubmit(data) {
   data = capitalizeFormData(data);
   var btn = document.getElementById("submitBtn");
   btn.disabled = true;
-  btn.textContent = "Submitting...";
-  sendToSheet(data).then(function(result) {
-    btn.disabled = false;
-    btn.textContent = "Submit & Preview";
-    if (result.status === "error") {
-      showToast(result.message || "Something went wrong. Please try again.", "error");
-      return;
-    }
-    showToast("Record saved to Google Sheets!");
+
+  if (!isOnline()) {
+    data._queued = true;
+    enqueueOffline(data);
+    btn.disabled = false; btn.textContent = "Submit & Preview";
+    showToast("Offline: record queued. Will sync when online.", "warn");
     showEligibilityMessage({ message: "" });
-    buildPreview(data);
-    buildPrintArea(data);
+    localStorage.setItem(STORAGE_KEY_LAST_DATA, JSON.stringify(data));
+    buildPreview(data); buildPrintArea(data);
+    document.getElementById("pdfModal").classList.add("open");
+    updateTransactionNumber();
+    return;
+  }
+
+  btn.textContent = "Submitting…";
+  sendToSheet(data).then(function (result) {
+    btn.disabled = false; btn.textContent = "Submit & Preview";
+    if (result.status === "error") {
+      data._queued = true;
+      enqueueOffline(data);
+      showToast("Server error. Record queued for auto-sync.", "warn");
+    } else {
+      showToast("Record saved to Google Sheets!");
+      data._queued = false;
+    }
+    showEligibilityMessage({ message: "" });
+    localStorage.setItem(STORAGE_KEY_LAST_DATA, JSON.stringify(data));
+    buildPreview(data); buildPrintArea(data);
     document.getElementById("pdfModal").classList.add("open");
     updateTransactionNumber();
   });
@@ -686,6 +943,8 @@ document.getElementById("clearBtn").addEventListener("click", clearFormAndFetchN
 document.getElementById("date").valueAsDate = new Date();
 // Always fetch next transaction number from sheet so it stays in sync (no reset on refresh)
 updateTransactionNumber();
+updateOfflineBanner();
+if (isOnline()) setTimeout(flushOfflineQueue, 2000);
 
 document.getElementById("date").addEventListener("change", function() {
   updateTransactionNumber();
