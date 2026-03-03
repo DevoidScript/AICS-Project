@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Assistance Record Entry System</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700&family=Source+Sans+3:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <link href="css/assistance-form.css" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body>
+
+<div id="offline-banner" class="offline-banner" role="status" aria-live="polite">
+  <span class="offline-banner-text">You are offline. Submissions will be queued and synced when connection is back.</span>
+  <span id="offline-queue-badge" class="offline-queue-badge" style="display: none;">0</span>
+</div>
+
+<header class="page-header">
+  <div class="header-seal">&#x1F4CB;</div>
+  <div class="header-text">
+    <h1>ASSISTANCE TO INDIVIDUALS IN CRISIS SITUATIONS</h1>
+    <p>LGU OTON</p>
+  </div>
+</header>
+
+<div id="cache-status-bar" class="cache-status-bar cache-status-none">No offline cache</div>
+
+<div class="form-card">
+  <form id="assistanceForm" novalidate>
+
+    <div class="section-label">Record Identification</div>
+    <div class="form-grid three-col">
+      <div class="field">
+        <label>Transaction Number<span class="req">*</span></label>
+        <input type="text" id="idNumber" placeholder="Auto-generated" readonly required />
+      </div>
+      <div class="field">
+        <label>Date <span class="req">*</span></label>
+        <input type="date" id="date" required />
+      </div>
+      <div class="field">
+        <label>Code</label>
+        <input type="text" id="code" placeholder="e.g. MED-01" />
+      </div>
+    </div>
+
+    <div class="section-label">Beneficiary Information</div>
+    <div class="form-grid">
+      <div class="field span-2">
+        <label>Name of Patient / Deceased <span class="req">*</span></label>
+        <input type="text" id="patientName" placeholder="Full name" required />
+      </div>
+      <div class="field">
+        <label>Address – Number <span class="req">*</span></label>
+        <input type="text" id="addrNumber" placeholder="House/Lot no." required />
+      </div>
+      <div class="field">
+        <label>Address – Street <span class="req">*</span></label>
+        <input type="text" id="addrStreet" placeholder="Street/Sitio/Purok" required />
+      </div>
+      <div class="field">
+        <label>Address – Barangay <span class="req">*</span></label>
+        <select id="addrBarangay" required>
+          <option value="" disabled selected>Select barangay...</option>
+          <option value="Abilay Norte">Abilay Norte</option>
+          <option value="Abilay Sur">Abilay Sur</option>
+          <option value="Alegre">Alegre</option>
+          <option value="Batuan Ilaud">Batuan Ilaud</option>
+          <option value="Batuan Ilaya">Batuan Ilaya</option>
+          <option value="Bita Norte">Bita Norte</option>
+          <option value="Bita Sur">Bita Sur</option>
+          <option value="Botong">Botong</option>
+          <option value="Buray">Buray</option>
+          <option value="Cabanbanan">Cabanbanan</option>
+          <option value="Caboloan Norte">Caboloan Norte</option>
+          <option value="Caboloan Sur">Caboloan Sur</option>
+          <option value="Cadinglian">Cadinglian</option>
+          <option value="Cagbang">Cagbang</option>
+          <option value="Calam-isan">Calam-isan</option>
+          <option value="Galang">Galang</option>
+          <option value="Lambuyao">Lambuyao</option>
+          <option value="Mambog">Mambog</option>
+          <option value="Pakiad">Pakiad</option>
+          <option value="Poblacion East">Poblacion East</option>
+          <option value="Poblacion North">Poblacion North</option>
+          <option value="Poblacion South">Poblacion South</option>
+          <option value="Poblacion West">Poblacion West</option>
+          <option value="Polo Maestra Bita">Polo Maestra Bita</option>
+          <option value="Rizal">Rizal</option>
+          <option value="Salngan">Salngan</option>
+          <option value="Sambaludan">Sambaludan</option>
+          <option value="San Antonio">San Antonio</option>
+          <option value="San Nicolas">San Nicolas</option>
+          <option value="Santa Clara">Santa Clara</option>
+          <option value="Santa Monica">Santa Monica</option>
+          <option value="Santa Rita">Santa Rita</option>
+          <option value="Tagbac Norte">Tagbac Norte</option>
+          <option value="Tagbac Sur">Tagbac Sur</option>
+          <option value="Trapiche">Trapiche</option>
+          <option value="Tuburan">Tuburan</option>
+          <option value="Turog-Turog">Turog-Turog</option>
+          <option value="Others">Others (specify in street)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Address – Municipality <span class="req">*</span></label>
+        <input type="text" id="addrMunicipality" placeholder="e.g. Oton" value="Oton" required />
+      </div>
+      <div class="field">
+        <label>Address – Province <span class="req">*</span></label>
+        <input type="text" id="addrProvince" placeholder="e.g. Iloilo" value="Iloilo" required />
+      </div>
+      <div class="field">
+        <label>Contact Number</label>
+        <input type="text" id="contactNumber" placeholder="e.g. 09171234567" maxlength="11" />
+      </div>
+      <div class="field">
+        <label>Claimant – Last name <span class="req">*</span></label>
+        <input type="text" id="claimantLastName" placeholder="Last name" required />
+      </div>
+      <div class="field">
+        <label>Claimant – First name <span class="req">*</span></label>
+        <input type="text" id="claimantFirstName" placeholder="First name" required />
+      </div>
+      <div class="field">
+        <label>Claimant – Middle name / initial</label>
+        <input type="text" id="claimantMiddleName" placeholder="Optional" />
+      </div>
+      <div class="field">
+        <label>Age <span class="req">*</span></label>
+        <input type="number" id="age" placeholder="e.g. 35" min="0" max="150" required />
+      </div>
+      <div class="field">
+        <label>Sex <span class="req">*</span></label>
+        <select id="sex" required>
+          <option value="" disabled selected>Select...</option>
+          <option value="Male">Male</option>
+          <option value="Female">Female</option>
+          <option value="Others">Others</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Date of Birth <span class="req">*</span></label>
+        <input type="date" id="dateOfBirth" required />
+      </div>
+      <div class="field span-2">
+        <label>Civil Status <span class="req">*</span></label>
+        <div class="checkbox-group" role="group" aria-label="Civil Status">
+          <label class="checkbox-label"><input type="radio" name="civilStatus" value="Single" required /> Single</label>
+          <label class="checkbox-label"><input type="radio" name="civilStatus" value="Married" /> Married</label>
+          <label class="checkbox-label"><input type="radio" name="civilStatus" value="Widow/er" /> Widow/er</label>
+          <label class="checkbox-label"><input type="radio" name="civilStatus" value="Solo parent/Separated" /> Solo parent/Separated</label>
+        </div>
+      </div>
+      <div class="field">
+        <label>Educational Attainment <span class="req">*</span></label>
+        <select id="educationalAttainment" required>
+          <option value="" disabled selected>Select...</option>
+          <option value="None">None</option>
+          <option value="Elementary level">Elementary level (not completed)</option>
+          <option value="Elementary graduate">Elementary graduate</option>
+          <option value="High school level">High school level (not completed)</option>
+          <option value="High school graduate">High school graduate</option>
+          <option value="College level">College level (not completed)</option>
+          <option value="College graduate">College graduate</option>
+          <option value="Vocational/Tech graduate">Vocational/Tech graduate</option>
+          <option value="Post-graduate">Post-graduate (Master's/Doctorate)</option>
+          <option value="Others">Others</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Occupation <span class="req">*</span></label>
+        <select id="occupation" required>
+          <option value="" disabled selected>Select...</option>
+          <option value="Farmer/Agricultural worker">Farmer/Agricultural worker</option>
+          <option value="Fisherman">Fisherman</option>
+          <option value="Vendor/Market vendor">Vendor/Market vendor</option>
+          <option value="Tricycle/Jeepney driver">Tricycle/Jeepney driver</option>
+          <option value="Construction worker">Construction worker</option>
+          <option value="Factory worker">Factory worker</option>
+          <option value="OFW">OFW (Overseas worker)</option>
+          <option value="Government employee">Government employee</option>
+          <option value="Teacher">Teacher</option>
+          <option value="Health worker">Health worker</option>
+          <option value="Domestic helper">Domestic helper</option>
+          <option value="Carpenter">Carpenter</option>
+          <option value="Electrician">Electrician</option>
+          <option value="Mechanic">Mechanic</option>
+          <option value="Store owner/Retailer">Store owner/Retailer</option>
+          <option value="Restaurant worker">Restaurant worker</option>
+          <option value="Driver">Driver</option>
+          <option value="Security guard">Security guard</option>
+          <option value="Laborer">Laborer</option>
+          <option value="Self-employed">Self-employed</option>
+          <option value="Unemployed">Unemployed</option>
+          <option value="Student">Student</option>
+          <option value="Others">Others</option>
+        </select>
+      </div>
+      <div class="field span-2">
+        <label>4P&apos;s Status <span class="req">*</span></label>
+        <div class="checkbox-group" role="group" aria-label="4Ps Status">
+          <label class="checkbox-label"><input type="radio" name="fourPsStatus" value="4P's" required /> 4P&apos;s</label>
+          <label class="checkbox-label"><input type="radio" name="fourPsStatus" value="NON 4P's" /> NON 4P&apos;s</label>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-label">Assistance Details</div>
+    <div class="form-grid">
+      <div class="field">
+        <label>Type of Assistance <span class="req">*</span></label>
+        <select id="typeOfAssistance" required>
+          <option value="" disabled selected>Select type...</option>
+          <option>Maintenance</option>
+          <option>Burial</option>
+          <option>Dialysis</option>
+          <option>Chemotherapy</option>
+          <option>Medicine</option>
+          <option>Laboratory</option>
+          <option>Hospital Bill</option>
+          <option>Confinement</option>
+          <option>Others</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Remark</label>
+        <input type="text" id="remark" placeholder="Optional note" />
+      </div>
+    </div>
+
+    <div id="eligibilityMessage" class="eligibility-message" role="alert" aria-live="polite" style="display: none;"></div>
+
+    <div class="section-label">Internal Use Only</div>
+    <div class="form-grid">
+      <div class="field">
+        <label>Encoded By <span class="req">*</span></label>
+        <input type="text" id="encodedBy" placeholder="Staff name" required />
+      </div>
+    </div>
+
+    <div class="form-actions">
+      <button type="button" class="btn btn-ghost" id="clearBtn">Clear Form</button>
+      <button type="submit" class="btn btn-primary" id="submitBtn">Submit &amp; Preview</button>
+    </div>
+
+  </form>
+</div>
+
+<!-- RECORD PREVIEW MODAL -->
+<div class="modal-overlay" id="pdfModal">
+  <div class="modal">
+    <div class="modal-head">
+      <h2>Record Preview</h2>
+      <button type="button" class="modal-close" id="closeModal" aria-label="Close">&#x2715;</button>
+    </div>
+    <div id="pdf-preview"></div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-ghost" id="closeModal2">Close</button>
+      <button class="btn btn-ghost" id="downloadPdf">&#x2B07; Download PDF</button>
+      <button class="btn btn-ghost" id="downloadCsv">&#x2B07; Download CSV</button>
+      <button class="btn btn-primary" id="printBtn">&#x1F5A8; Print Slip</button>
+    </div>
+  </div>
+</div>
+
+<!--
+  #printable-area is hidden on screen.
+  When Print Slip is clicked, it becomes visible,
+  window.print() fires, and @media print shows ONLY this div.
+  The browser's print preview dialog appears with the slip layout.
+-->
+<div id="printable-area" style="display:none;"></div>
+
+<!-- Cooldown warning modal: same patient + type (except Burial) submitted too soon -->
+<div class="modal-overlay" id="cooldownWarningModal">
+  <div class="modal modal-warning">
+    <div class="modal-head modal-head-warning">
+      <h2>Cannot submit – cooldown period</h2>
+      <button type="button" class="modal-close" id="cooldownModalClose" aria-label="Close">&#x2715;</button>
+    </div>
+    <div class="modal-body">
+      <p class="cooldown-warning-text">This patient already has a <span id="cooldownType"></span> request on <span id="cooldownLastDate"></span>. They may request again on <span id="cooldownEligibleDate"></span>.</p>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-primary" id="cooldownModalOk">OK</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script src="js/config.js"></script>
+<script src="js/MSWD.js"></script>
+<script src="js/record-cache.js"></script>
+
+</body>
+</html>

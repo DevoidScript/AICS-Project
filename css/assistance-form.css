@@ -124,6 +124,18 @@ input:focus, select:focus {
   font-style: italic;
 }
 select { cursor: pointer; }
+.checkbox-group {
+  display: flex; flex-wrap: wrap; gap: 16px 24px;
+  padding: 8px 0; align-items: center;
+}
+.checkbox-label {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 0.9rem; font-weight: 500; text-transform: none;
+  letter-spacing: normal; cursor: pointer; color: var(--text);
+}
+.checkbox-label input[type="radio"] {
+  width: auto; margin: 0; cursor: pointer;
+}
 .form-actions {
   display: flex; gap: 12px; justify-content: flex-end;
   padding-top: 20px; border-top: 1px solid var(--border); margin-top: 8px;
@@ -420,6 +432,26 @@ select { cursor: pointer; }
     box-sizing: border-box;
   }
 
+  /* ── MSWD slip container (full-width upper half) ── */
+  .slip-mswd-intake {
+    width: 210mm;
+    max-width: 100%;
+    margin: 4mm auto 0;        /* move higher */
+    border: 1.5px solid #000;  /* clean frame */
+    box-sizing: border-box;
+    background: #fff;
+  }
+  .slip-mswd-intake .mswd-slip-body {
+    padding: 4mm 5mm 3mm;
+  }
+  /* Header must touch the border */
+  .slip-mswd-intake .slip-header {
+    margin: 0;
+    border-bottom: 1.5px solid #000;
+    line-height: 0;
+  }
+  .slip-mswd-intake .slip-header-img { width: 100%; display: block; height: auto; }
+
   /* Header: full-width image extending to border, no side gaps */
   .slip-header {
     margin: 0 -4mm 0;
@@ -553,7 +585,471 @@ select { cursor: pointer; }
     margin-top: 0;
     line-height: 1.1;
   }
+
+  /* MSWD Intake Sheet layout blocks (inside mswd-slip-body) */
+
+  /* Transaction row (left, center, right) */
+  .slip-intake-txn-row { display: flex; justify-content: space-between; font-size: 6.5pt; font-weight: 700; margin-bottom: 2mm; padding: 0 1mm; }
+  .slip-intake-txn-left { text-align: left; }
+  .slip-intake-txn-center { text-align: center; }
+  .slip-intake-txn-right { text-align: right; }
+
+  /* Center autofilled data */
+  .slip-center { text-align: center !important; }
+
+  /* MSWD Intake Sheet layout */
+  .slip-intake-title { font-size: 9pt; font-weight: 800; text-align: center; margin-bottom: 0.5mm; }
+  .slip-intake-subtitle { font-size: 8pt; font-weight: 700; text-align: center; margin-bottom: 1.5mm; }
+  .slip-intake-instruction { font-size: 6.5pt; font-weight: 700; text-align: center; margin-bottom: 2mm; text-transform: uppercase; }
+  .slip-intake-section { margin-bottom: 2mm; }
+  .slip-intake-label { font-size: 6.5pt; font-weight: 700; text-transform: uppercase; margin-bottom: 0.5mm; }
+  .slip-intake-name-row { display: flex; gap: 2mm; margin-bottom: 1.5mm; }
+  /* Remove extra container underline; underline is on .field-value */
+  .slip-intake-name-box {
+    flex: 1;
+    min-height: 6mm;
+    padding: 0;
+    text-align: center;
+  }
+  .slip-intake-name-box small {
+    font-size: 5.5pt;
+    display: block;
+    color: #333;
+    margin-top: 0;          /* indicator immediately under line */
+  }
+  .slip-intake-addr-row { display: flex; gap: 1mm; margin-bottom: 1.5mm; font-size: 6pt; }
+  /* Remove extra container underline; underline is on .field-value */
+  .slip-intake-addr-box {
+    flex: 1;
+    min-height: 5mm;
+    padding: 0;
+    text-align: center;
+  }
+  .slip-intake-addr-box .addr-label { font-size: 5pt; color: #333; }
+  .slip-intake-demo-row { display: flex; gap: 3mm; align-items: flex-end; margin-bottom: 1mm; flex-wrap: wrap; }
+  .slip-intake-demo-row .item { display: flex; align-items: baseline; gap: 1mm; }
+  .slip-intake-demo-row .item-label { font-size: 6pt; font-weight: 700; white-space: nowrap; }
+  .slip-intake-demo-row .item-value {
+    border-bottom: 1px solid #000;
+    min-width: 12mm;
+    min-height: 4mm;
+    font-size: 6.5pt;
+    padding: 0 0.5mm 0.2mm;
+    text-align: center;
+    line-height: 1.05;
+  }
+  .slip-intake-table { width: 100%; border-collapse: collapse; font-size: 6pt; margin: 2mm 0; }
+  .slip-intake-table th { background: #c9a227; color: #000; font-weight: 700; padding: 1mm 0.5mm; text-align: center; border: 1px solid #000; }
+  .slip-intake-table td {
+    border: 1px solid #000;
+    padding: 0.5mm;
+    min-height: 7mm;           /* taller rows for handwriting */
+  }
+  .slip-intake-table .blank-cell {
+    border-bottom: 1px solid #999;
+    min-height: 7mm;
+  }
+  /* Generic field styling inside MSWD slip */
+  .slip-mswd-intake .field-value {
+    font-size: 9pt;
+    font-weight: 700;
+    color: #000;
+    border-bottom: 1px solid #000;
+    min-height: 11px;
+    padding-bottom: 0;       /* tighter underline */
+    display: inline-block;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .slip-mswd-intake .field-sublabel {
+    font-size: 6pt;
+    color: #6b7280;
+    text-align: center;
+    display: block;
+    margin-top: 0;
+    font-style: italic;
+  }
+  .slip-intake-footer { display: flex; justify-content: space-between; margin-top: 3mm; gap: 4mm; font-size: 6pt; }
+  .slip-intake-footer .foot-item { flex: 1; text-align: center; }
+  .slip-intake-footer .foot-line { border-bottom: 1px solid #000; min-height: 6mm; margin-bottom: 0.5mm; }
 }
+
+/* MSWD Intake slip - preview (modal) */
+#pdf-preview .slip-mswd-intake {
+  width: 210mm;
+  max-width: 100%;
+  border: 1.5px solid #000;
+  margin: 4mm auto 0;
+  background: #fff;
+  box-sizing: border-box;
+}
+#pdf-preview .slip-mswd-intake .mswd-slip-body { padding: 4mm 5mm 3mm; }
+#pdf-preview .slip-mswd-intake .slip-header { margin: 0; border-bottom: 1.5px solid #000; line-height: 0; }
+#pdf-preview .slip-mswd-intake .slip-header-img { width: 100%; display: block; height: auto; }
+#pdf-preview .slip-intake-txn-row { display: flex; justify-content: space-between; font-size: 6.5pt; font-weight: 700; margin-bottom: 2mm; padding: 0 1mm; }
+#pdf-preview .slip-intake-txn-left { text-align: left; }
+#pdf-preview .slip-intake-txn-center { text-align: center; }
+#pdf-preview .slip-intake-txn-right { text-align: right; }
+#pdf-preview .slip-center { text-align: center !important; }
+#pdf-preview .slip-intake-title { font-size: 9pt; font-weight: 800; text-align: center; margin-bottom: 0.5mm; }
+#pdf-preview .slip-intake-subtitle { font-size: 8pt; font-weight: 700; text-align: center; margin-bottom: 1.5mm; }
+#pdf-preview .slip-intake-instruction { font-size: 6.5pt; font-weight: 700; text-align: center; margin-bottom: 2mm; text-transform: uppercase; }
+#pdf-preview .slip-intake-section { margin-bottom: 2mm; }
+#pdf-preview .slip-intake-label { font-size: 6.5pt; font-weight: 700; text-transform: uppercase; margin-bottom: 0.5mm; }
+#pdf-preview .slip-intake-name-row { display: flex; gap: 2mm; margin-bottom: 1.5mm; }
+#pdf-preview .slip-intake-name-box { flex: 1; min-height: 6mm; padding: 0; text-align: center; }
+#pdf-preview .slip-intake-name-box small {
+  font-size: 5.5pt;
+  display: block;
+  color: #333;
+  margin-top: 0;
+}
+#pdf-preview .slip-intake-addr-row { display: flex; gap: 1mm; margin-bottom: 1.5mm; font-size: 6pt; }
+#pdf-preview .slip-intake-addr-box { flex: 1; min-height: 5mm; padding: 0; text-align: center; }
+#pdf-preview .slip-intake-addr-box .addr-label { font-size: 5pt; color: #333; }
+#pdf-preview .slip-intake-demo-row { display: flex; gap: 3mm; align-items: flex-end; margin-bottom: 1mm; flex-wrap: wrap; }
+#pdf-preview .slip-intake-demo-row .item { display: flex; align-items: baseline; gap: 1mm; }
+#pdf-preview .slip-intake-demo-row .item-label { font-size: 6pt; font-weight: 700; white-space: nowrap; }
+#pdf-preview .slip-intake-demo-row .item-value {
+  border-bottom: 1px solid #000;
+  min-width: 12mm;
+  min-height: 4mm;
+  font-size: 6.5pt;
+  padding: 0 0.5mm 0.2mm;
+  text-align: center;
+  line-height: 1.05;
+}
+#pdf-preview .slip-intake-table { width: 100%; border-collapse: collapse; font-size: 6pt; margin: 2mm 0; }
+#pdf-preview .slip-intake-table th { background: #c9a227; color: #000; font-weight: 700; padding: 1mm 0.5mm; text-align: center; border: 1px solid #000; }
+#pdf-preview .slip-intake-table td {
+  border: 1px solid #000;
+  padding: 0.5mm;
+  min-height: 7mm;
+}
+#pdf-preview .slip-intake-table .blank-cell {
+  border-bottom: 1px solid #999;
+  min-height: 7mm;
+}
+#pdf-preview .slip-mswd-intake .field-value {
+  font-size: 9pt;
+  font-weight: 700;
+  color: #000;
+  border-bottom: 1px solid #000;
+  min-height: 11px;
+  padding-bottom: 0;
+  display: inline-block;
+  width: 100%;
+  box-sizing: border-box;
+}
+#pdf-preview .slip-mswd-intake .field-sublabel {
+  font-size: 6pt;
+  color: #6b7280;
+  text-align: center;
+  display: block;
+  margin-top: 0;
+  font-style: italic;
+}
+#pdf-preview .slip-intake-footer { display: flex; justify-content: space-between; margin-top: 3mm; gap: 4mm; font-size: 6pt; }
+#pdf-preview .slip-intake-footer .foot-item { flex: 1; text-align: center; }
+#pdf-preview .slip-intake-footer .foot-line { border-bottom: 1px solid #000; min-height: 6mm; margin-bottom: 0.5mm; }
 
 #toast.warn { background: #92400e; }
 #toast.info { background: #1d4ed8; }
+
+/* =====================================================================
+   MSWD INTAKE SLIP – new classes (getSlipHtml v2)
+   Paste at the end of assistance-form.css
+   ===================================================================== */
+
+/* ── Wrapper used in both #pdf-preview and #printable-area ── */
+.slip-mswd-intake {
+  font-family: Arial, Helvetica, sans-serif;
+  background: #fff;
+  color: #000;
+}
+
+/* ── Header image ── */
+.slip-mswd-intake .slip-header { width: 100%; margin-bottom: 0; }
+.slip-mswd-intake .slip-header-img { width: 100%; display: block; }
+
+/* ── Queued warning banner ── */
+.queued-banner {
+  background: #d97706;
+  color: #fff;
+  font-size: 7pt;
+  font-weight: 700;
+  padding: 2px 6px;
+  text-align: center;
+}
+
+/* ── Slip body padding ── */
+.mswd-slip-body { padding: 4mm 6mm 5mm; }
+
+/* ── Transaction strip ── */
+.slip-intake-txn-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 6.5pt;
+  font-weight: 700;
+  text-transform: uppercase;
+  border-bottom: 1px solid #94a3b8;
+  padding-bottom: 2mm;
+  margin-bottom: 2.5mm;
+}
+
+/* ── Titles ── */
+.slip-mswd-intake .slip-intake-title {
+  font-size: 10pt;
+  font-weight: 900;
+  text-align: center;
+  text-transform: uppercase;
+  margin-bottom: 1mm;
+}
+.slip-mswd-intake .slip-intake-subtitle {
+  font-size: 8pt;
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 1.5mm;
+}
+.slip-mswd-intake .slip-intake-instruction {
+  font-size: 6.5pt;
+  font-weight: 700;
+  text-align: center;
+  text-transform: uppercase;
+  margin-bottom: 2mm;
+}
+
+/* ── Section spacing ── */
+.slip-mswd-intake .slip-intake-section { margin-bottom: 2mm; }
+
+/* ── Bold uppercase section label ── */
+.slip-mswd-intake .slip-intake-label {
+  font-size: 7pt;
+  font-weight: 900;
+  text-transform: uppercase;
+  margin-bottom: 1mm;
+}
+
+/* ── Generic field building blocks ── */
+.field-value {
+  border-bottom: 1.2px solid #000;
+  font-size: 8pt;
+  font-weight: 700;
+  min-height: 5.5mm;
+  padding: 0 1mm 0.5mm;
+  display: block;
+}
+.field-sublabel {
+  font-size: 5.5pt;
+  color: #555;
+  display: block;
+  text-align: center;
+  margin-top: 0.5mm;
+  font-style: italic;
+}
+.slip-center { text-align: center; }
+
+/* ── PANGALAN name row ── */
+.slip-mswd-intake .slip-intake-name-row {
+  display: flex;
+  gap: 3mm;
+  margin-bottom: 2mm;
+}
+.slip-mswd-intake .slip-intake-name-box { flex: 1; }
+.slip-mswd-intake .slip-intake-name-box .field-value {
+  font-size: 9pt;
+  min-height: 6mm;
+}
+
+/* ── Address row ── */
+.slip-mswd-intake .slip-intake-addr-row {
+  display: flex;
+  gap: 2mm;
+  margin-bottom: 2mm;
+}
+.slip-mswd-intake .slip-intake-addr-box { flex: 1; }
+.slip-mswd-intake .slip-intake-addr-box .field-value { font-size: 7.5pt; min-height: 5mm; }
+
+/* ── Demo rows (Edad / Sex / Civil / Edu / Occ / DOB / Contact) ── */
+.slip-mswd-intake .slip-intake-demo-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 3mm;
+  margin-bottom: 2.5mm;      /* ← more vertical breathing room between rows */
+  flex-wrap: wrap;
+}
+.slip-mswd-intake .slip-intake-demo-row .item {
+  display: flex;
+  flex-direction: column;    /* label on top, value underlined below */
+  gap: 0;
+}
+.slip-mswd-intake .slip-intake-demo-row .item-label {
+  font-size: 6pt;
+  font-weight: 700;
+  text-transform: uppercase;
+  white-space: nowrap;
+  margin-bottom: 0.5mm;
+}
+.slip-mswd-intake .slip-intake-demo-row .item-value {
+  border-bottom: 1.2px solid #000;
+  min-width: 16mm;
+  min-height: 5.5mm;
+  font-size: 7.5pt;
+  font-weight: 700;
+  padding: 0 1mm 0.5mm;
+  display: block;
+}
+/* Stretch items that need more space */
+.slip-mswd-intake .slip-intake-demo-row .item.stretch { flex: 1; }
+.slip-mswd-intake .slip-intake-demo-row .item.stretch .item-value { width: 100%; }
+
+/* ── Civil status checkboxes ── */
+.civil-status-group {
+  display: flex;
+  gap: 3mm;
+  flex-wrap: wrap;
+  padding-bottom: 0.5mm;
+  border-bottom: 1.2px solid #000;
+  min-height: 5.5mm;
+  align-items: center;
+}
+.civil-option {
+  display: flex;
+  align-items: center;
+  gap: 1mm;
+  font-size: 7pt;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.checkbox-sq {
+  width: 3.5mm;
+  height: 3.5mm;
+  border: 1.2px solid #000;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 8pt;
+  font-weight: 900;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+/* ── 4Ps group (right-aligned on same row as DOB/Contact) ── */
+.fps-row-group {
+  display: flex;
+  align-items: flex-end;
+  gap: 2mm;
+  margin-left: auto;
+}
+.fps-option {
+  display: flex;
+  align-items: center;
+  gap: 1mm;
+  font-size: 7pt;
+  font-weight: 700;
+  white-space: nowrap;
+  padding-bottom: 0.5mm;
+}
+
+/* ── DOB boxes ── */
+.dob-group {
+  display: flex;
+  align-items: flex-end;
+  gap: 1.5mm;
+}
+.dob-unit {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.dob-unit .field-value {
+  text-align: center;
+  padding: 0 1mm 0.5mm;
+}
+.dob-mm  .field-value { min-width: 8mm;  }
+.dob-dd  .field-value { min-width: 8mm;  }
+.dob-yyyy .field-value { min-width: 13mm; }
+
+/* ── Family composition section ── */
+.slip-mswd-intake .family-section { margin-top: 2mm; }
+.slip-mswd-intake .family-instruction-1 {
+  font-size: 7.5pt;
+  font-weight: 800;
+  text-transform: uppercase;
+  margin-bottom: 0.5mm;
+}
+.slip-mswd-intake .family-instruction-2 {
+  font-size: 7.5pt;
+  font-weight: 800;
+  text-transform: uppercase;
+  margin-bottom: 1.5mm;
+}
+.slip-mswd-intake .family-instruction-2 span { color: #b91c1c; font-weight: 900; }
+
+/* Family label box */
+.family-comp-label {
+  font-size: 7pt;
+  font-weight: 900;
+  text-transform: uppercase;
+  border: 1.2px solid #000;
+  display: inline-block;
+  padding: 0.5mm 2mm;
+  margin-bottom: 1.5mm;
+}
+
+/* ── Family table ── */
+.slip-mswd-intake .slip-intake-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 6pt;
+  margin-top: 0;
+}
+.slip-mswd-intake .slip-intake-table th {
+  background: #c9a227;
+  color: #000;
+  font-weight: 800;
+  padding: 1.5mm 1mm;
+  text-align: center;
+  border: 1px solid #000;
+  font-size: 6pt;
+  text-transform: uppercase;
+}
+/* Make rows tall enough for handwriting */
+.slip-mswd-intake .slip-intake-table td {
+  border: 1px solid #000;
+  height: 8mm;       /* ← was 5mm, now 8mm so people can actually write */
+  padding: 0;
+}
+
+/* ── Footer ── */
+.slip-mswd-intake .slip-intake-footer {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 5mm;
+  gap: 5mm;
+  font-size: 6pt;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.slip-mswd-intake .slip-intake-footer .foot-item {
+  flex: 1;
+  text-align: center;
+}
+.slip-mswd-intake .slip-intake-footer .foot-item:last-child { flex: 0.5; }
+.slip-mswd-intake .slip-intake-footer .foot-line {
+  border-bottom: 1.2px solid #000;
+  min-height: 7mm;      /* ← taller signature line */
+  margin-bottom: 1mm;
+  font-size: 7pt;
+  font-weight: 700;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 0.5mm;
+}
+
+/* ── @media print overrides (ensure sizes hold when printing) ── */
+@media print {
+  .slip-mswd-intake .slip-intake-table td { height: 8mm !important; }
+  .slip-mswd-intake .slip-intake-footer .foot-line { min-height: 7mm !important; }
+}

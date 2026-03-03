@@ -1,5 +1,3 @@
-var APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbynmrEpTPH6xGGsQKVtRDi6zTKvXUE3WqmUVlXmAR0VF6Ne2LcqzGGeMzc2kSgrjVacnA/exec";
-
 // --- Offline storage keys ---
 var STORAGE_KEY_QUEUE      = "assistanceForm_offlineQueue";
 var STORAGE_KEY_ELIG_CACHE = "assistanceForm_eligibilityCache";
@@ -262,7 +260,10 @@ function fetchNextSequenceFromSheet(yyyymmdd) {
         resolve(null);
       }
     };
-    var url = APPS_SCRIPT_URL + "?action=getNextSeq&date=" + encodeURIComponent(yyyymmdd) + "&callback=" + callbackName + "&_=" + Date.now();
+    var url = APPS_SCRIPT_URL + "?action=getNextSeq&date=" + encodeURIComponent(yyyymmdd) +
+      "&callback=" + callbackName +
+      "&token=" + encodeURIComponent(APPS_SCRIPT_TOKEN) +
+      "&_=" + Date.now();
     script = document.createElement("script");
     script.onerror = function() {
       clearTimeout(timeout);
@@ -366,7 +367,10 @@ function checkEligibility(patientName, typeOfAssistance) {
     };
 
     var url = APPS_SCRIPT_URL + "?action=checkEligibility&patientName=" + encodeURIComponent(patientName) +
-      "&typeOfAssistance=" + encodeURIComponent(typeOfAssistance) + "&callback=" + callbackName + "&_=" + Date.now();
+      "&typeOfAssistance=" + encodeURIComponent(typeOfAssistance) +
+      "&callback=" + callbackName +
+      "&token=" + encodeURIComponent(APPS_SCRIPT_TOKEN) +
+      "&_=" + Date.now();
     script = document.createElement("script");
     script.onerror = function () {
       clearTimeout(timeout);
@@ -636,7 +640,10 @@ function sendToSheet(data) {
         resolve({ status: "error", message: "Invalid response from server. Please try again." });
       }
     };
-    var query = params.toString() + "&callback=" + encodeURIComponent(callbackName) + "&_=" + Date.now();
+    var query = params.toString() +
+      "&callback=" + encodeURIComponent(callbackName) +
+      "&token=" + encodeURIComponent(APPS_SCRIPT_TOKEN) +
+      "&_=" + Date.now();
     var script = document.createElement("script");
     script.onerror = function() {
       clearTimeout(timeout);

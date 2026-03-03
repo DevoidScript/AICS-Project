@@ -61,4 +61,18 @@ AICS/
 
 ---
 
+## Security Setup
+
+- `js/config.js` is excluded from Git via `.gitignore`.
+- To configure a new environment:
+  - Copy `js/config.example.js` to `js/config.js`.
+  - Fill in your own **Google Apps Script web app URL** and a strong **secret token**.
+- In the Google Apps Script project (`apps-script/Code.gs`):
+  - Set `ALLOWED_TOKEN` to the **same secret token** used in `js/config.js`.
+- The existing public Apps Script deployment URL in older commits should be considered compromised:
+  - Deploy a **new** Apps Script web app deployment to get a fresh URL.
+  - Update `APPS_SCRIPT_URL` in `js/config.js` to point to that new URL.
+
+---
+
 *Last updated: February 2025*

@@ -1,3 +1,5 @@
+var ALLOWED_TOKEN = "REPLACE_WITH_YOUR_SECRET_TOKEN";
+
 /**
  * Returns the active sheet or an error message. Use this to guard against null spreadsheet/sheet.
  * @returns {{ sheet: Sheet | null, error: string | null }}
@@ -365,6 +367,29 @@ function getPingResponse(params) {
 
 function doGet(e) {
   var params = (e && e.parameter) || {};
+
+  // ── Security: reject requests without the correct token ──
+  if (!params.token || params.token !== ALLOWED_TOKEN) {
+    return ContentService
+      .createTextOutput(
+        (params.callback ? params.callback + "(" : "") +
+        JSON.stringify({ status: "error", message: "Unauthorized" }) +
+        (params.callback ? ")" : "")
+      )
+      .setMimeType(ContentService.MimeType.JAVASCRIPT);
+  }
+  // ── End security check ──
+
+  // Basic input sanitation for submit action
+  if (!params.action) {
+    var fieldsToCheck = ["patientName", "address", "claimantLastName", "claimantFirstName", "claimantMiddleName", "encodedBy", "remark"];
+    for (var f = 0; f < fieldsToCheck.length; f++) {
+      var val = params[fieldsToCheck[f]] || "";
+      if (val.length > 300) {
+        return jsonResponse({ status: "error", message: "Input too long for field: " + fieldsToCheck[f] }, params);
+      }
+    }
+  }
 
   if (params.action === "ping") {
     return getPingResponse(params);
