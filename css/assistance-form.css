@@ -388,37 +388,44 @@ select { cursor: pointer; }
    =========================================== */
 @media print {
   @page { 
-    margin: 0; 
-    size: A4; /* Standard A4 size (210mm x 297mm) */
-  }
-  * {
     margin: 0;
-    padding: 0;
-    box-sizing: border-box;
+    size: A4; /* 210mm x 297mm */
   }
-  body {
-    margin: 0;
-    padding: 0;
-    width: 100%;
-    height: 100%;
+  html, body {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 210mm !important;
+    height: auto !important;
+    overflow: visible !important;
+    background: #fff !important;
   }
-  body > * { display: none !important; }
+
+  /* Hide everything except the printable area */
+  .offline-banner,
+  .page-header,
+  header.page-header,
+  #cache-status-bar,
+  .form-card,
+  .modal-overlay,
+  #pdfModal,
+  #cooldownWarningModal,
+  #offline-banner,
+  #toast {
+    display: none !important;
+  }
 
   #printable-area {
     display: block !important;
-    width: 100%;
-    height: 100%;
-    margin: 0;
-    padding: 0;
+    position: static !important;
+    width: 210mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
     font-family: Arial, Helvetica, sans-serif;
     color: #000;
     background: #fff;
-    position: absolute;
-    top: 0;
-    left: 0;
   }
 
-  /* Outer card — positioned in upper portion of A4 page */
+  /* Outer card — for assistance-form slip */
   .slip-card {
     border: 2px solid #000;
     border-radius: 0;
@@ -426,23 +433,23 @@ select { cursor: pointer; }
     width: 148.5mm;
     max-width: 100%;
     height: auto;
-    margin: 0 auto;
-    margin-top: 20mm;
+    margin: 5mm auto 0;
     overflow: hidden;
     box-sizing: border-box;
   }
 
-  /* ── MSWD slip container (full-width upper half) ── */
+  /* ── MSWD slip container — flush to top, full A4 width ── */
   .slip-mswd-intake {
-    width: 210mm;
-    max-width: 100%;
-    margin: 4mm auto 0;        /* move higher */
-    border: 1.5px solid #000;  /* clean frame */
+    width: 210mm !important;
+    max-width: 210mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 1.5px solid #000;
     box-sizing: border-box;
     background: #fff;
   }
   .slip-mswd-intake .mswd-slip-body {
-    padding: 4mm 5mm 3mm;
+    padding: 2mm 5mm 2mm;
   }
   /* Header must touch the border */
   .slip-mswd-intake .slip-header {
@@ -454,7 +461,7 @@ select { cursor: pointer; }
 
   /* Header: full-width image extending to border, no side gaps */
   .slip-header {
-    margin: 0 -4mm 0;
+    margin: 0;
     padding: 0;
     border-bottom: 1.5px solid #000;
     line-height: 0;
@@ -464,11 +471,107 @@ select { cursor: pointer; }
     width: 100%;
     height: auto;
     display: block;
-    object-fit: cover;
-    object-position: top center;
-    image-rendering: auto;
-    image-rendering: high-quality;
   }
+
+  /* Compact title strip */
+  .slip-intake-txn-row {
+    font-size: 6pt !important;
+    padding-bottom: 1mm !important;
+    margin-bottom: 1.5mm !important;
+  }
+  .slip-mswd-intake .slip-intake-title { font-size: 9pt !important; margin-bottom: 0.5mm !important; }
+  .slip-mswd-intake .slip-intake-subtitle { font-size: 7pt !important; margin-bottom: 0.5mm !important; }
+  .slip-mswd-intake .slip-intake-instruction { font-size: 6pt !important; margin-bottom: 1.5mm !important; }
+
+  /* Compact sections */
+  .slip-mswd-intake .slip-intake-section { margin-bottom: 1mm !important; }
+  .slip-mswd-intake .slip-intake-label { font-size: 6.5pt !important; margin-bottom: 0.5mm !important; }
+
+  /* Compact field values */
+  .field-value { min-height: 4.5mm !important; font-size: 7.5pt !important; }
+  .field-sublabel { font-size: 5pt !important; margin-top: 0 !important; }
+
+  /* Name row */
+  .slip-mswd-intake .slip-intake-name-row { gap: 2mm !important; margin-bottom: 1mm !important; }
+  .slip-mswd-intake .slip-intake-name-box .field-value { font-size: 8pt !important; min-height: 5mm !important; }
+
+  /* Address row */
+  .slip-mswd-intake .slip-intake-addr-row { gap: 1.5mm !important; margin-bottom: 1mm !important; }
+  .slip-mswd-intake .slip-intake-addr-box .field-value { font-size: 7pt !important; min-height: 4mm !important; }
+
+  /* Demo rows — enforce inline, no-wrap layout in print */
+  .slip-mswd-intake .slip-intake-demo-row { 
+    gap: 2mm !important; 
+    margin-bottom: 1mm !important; 
+    flex-wrap: nowrap !important; 
+    align-items: flex-end !important;
+  }
+  .slip-mswd-intake .slip-intake-demo-row .item.inline { flex-direction: row !important; align-items: baseline !important; gap: 1mm !important; }
+  .slip-mswd-intake .slip-intake-demo-row .item-label { font-size: 5.5pt !important; }
+  .slip-mswd-intake .slip-intake-demo-row .item-value { 
+    min-height: 4mm !important; 
+    font-size: 7pt !important; 
+    padding: 0 0.5mm 0 !important;
+    display: flex !important;
+    align-items: flex-end !important;
+    padding-bottom: 0 !important;
+    line-height: 1 !important;
+  }
+  .civil-status-group { 
+    min-height: 4mm !important; 
+    gap: 2mm !important; 
+    flex-wrap: nowrap !important; 
+    align-items: flex-end !important;
+    border-bottom: none !important;
+    padding-bottom: 0 !important;
+  }
+  .civil-option { font-size: 6pt !important; }
+  .checkbox-sq { width: 2.8mm !important; height: 2.8mm !important; font-size: 6.5pt !important; }
+  .fps-option { font-size: 6pt !important; }
+
+  /* Family section — inline header */
+  .slip-mswd-intake .family-section { margin-top: 1.5mm !important; }
+  .family-header-row {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    margin-bottom: 1mm !important;
+    gap: 3mm !important;
+  }
+  .family-instructions {
+    font-size: 6.5pt !important;
+    font-weight: 800 !important;
+    text-transform: uppercase !important;
+    white-space: nowrap !important;
+  }
+  .family-instruction-1 { font-size: 6.5pt !important; }
+  .family-instruction-2 { font-size: 6.5pt !important; }
+  .red-text { color: #b91c1c !important; font-weight: 900 !important; }
+  .family-comp-label {
+    font-size: 6.5pt !important;
+    padding: 0.5mm 2mm !important;
+    margin-bottom: 0 !important;
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+  }
+
+  /* Compact table */
+  .slip-mswd-intake .slip-intake-table { font-size: 5.5pt !important; }
+  .slip-mswd-intake .slip-intake-table th { padding: 1mm 0.5mm !important; font-size: 5.5pt !important; }
+  .slip-mswd-intake .slip-intake-table td { height: 7mm !important; }
+
+  /* Footer */
+  .slip-mswd-intake .slip-intake-footer { margin-top: 2mm !important; gap: 3mm !important; font-size: 5.5pt !important; }
+  .slip-mswd-intake .slip-intake-footer .foot-line { min-height: 6mm !important; font-size: 6.5pt !important; }
+
+  /* Slip title / body for assistance-form slip */
+  .slip-title { font-size: 9pt; padding: 1.5mm 0 2mm; margin: 0 -4mm 1mm; border-bottom: 1.5px solid #000; }
+  .slip-body { margin-bottom: 0; }
+  .slip-field { margin-bottom: 1mm; gap: 1mm; }
+  .slip-label { font-size: 7.5pt; width: 30mm; min-width: 30mm; }
+  .slip-value { font-size: 7.5pt; }
+  .slip-signature { margin-top: 3mm; padding-top: 2mm; border-top: 1px solid #000; }
+}
 
   /* "ASSISTANCE TO INDIVIDUALS IN CRISIS SITUATIONS" — single line, full width */
   .slip-title {
@@ -660,6 +763,8 @@ select { cursor: pointer; }
     display: inline-block;
     width: 100%;
     box-sizing: border-box;
+    line-height: 1;
+    letter-spacing: 0;
   }
   .slip-mswd-intake .field-sublabel {
     font-size: 6pt;
@@ -672,7 +777,6 @@ select { cursor: pointer; }
   .slip-intake-footer { display: flex; justify-content: space-between; margin-top: 3mm; gap: 4mm; font-size: 6pt; }
   .slip-intake-footer .foot-item { flex: 1; text-align: center; }
   .slip-intake-footer .foot-line { border-bottom: 1px solid #000; min-height: 6mm; margin-bottom: 0.5mm; }
-}
 
 /* MSWD Intake slip - preview (modal) */
 #pdf-preview .slip-mswd-intake {
@@ -717,7 +821,9 @@ select { cursor: pointer; }
   font-size: 6.5pt;
   padding: 0 0.5mm 0.2mm;
   text-align: center;
-  line-height: 1.05;
+  line-height: 1;
+  padding-bottom: 0;
+  letter-spacing: 0;
 }
 #pdf-preview .slip-intake-table { width: 100%; border-collapse: collapse; font-size: 6pt; margin: 2mm 0; }
 #pdf-preview .slip-intake-table th { background: #c9a227; color: #000; font-weight: 700; padding: 1mm 0.5mm; text-align: center; border: 1px solid #000; }
@@ -740,6 +846,8 @@ select { cursor: pointer; }
   display: inline-block;
   width: 100%;
   box-sizing: border-box;
+  line-height: 1;
+  letter-spacing: 0;
 }
 #pdf-preview .slip-mswd-intake .field-sublabel {
   font-size: 6pt;
@@ -836,8 +944,12 @@ select { cursor: pointer; }
   font-size: 8pt;
   font-weight: 700;
   min-height: 5.5mm;
-  padding: 0 1mm 0.5mm;
-  display: block;
+  padding: 0 1mm 0;
+  display: flex;
+  align-items: flex-end;
+  padding-bottom: 0;
+  line-height: 1;
+  letter-spacing: 0;
 }
 .field-sublabel {
   font-size: 5.5pt;
@@ -847,7 +959,10 @@ select { cursor: pointer; }
   margin-top: 0.5mm;
   font-style: italic;
 }
-.slip-center { text-align: center; }
+.slip-center { 
+  text-align: center; 
+  width: 100%;
+}
 
 /* ── PANGALAN name row ── */
 .slip-mswd-intake .slip-intake-name-row {
@@ -875,32 +990,43 @@ select { cursor: pointer; }
   display: flex;
   align-items: flex-end;
   gap: 3mm;
-  margin-bottom: 2.5mm;      /* ← more vertical breathing room between rows */
-  flex-wrap: wrap;
+  margin-bottom: 1.5mm;
+  flex-wrap: nowrap;
 }
+/* Default item: label stacked above value */
 .slip-mswd-intake .slip-intake-demo-row .item {
   display: flex;
-  flex-direction: column;    /* label on top, value underlined below */
+  flex-direction: column;
   gap: 0;
+}
+/* Inline item: label and value on same horizontal line */
+.slip-mswd-intake .slip-intake-demo-row .item.inline {
+  flex-direction: row;
+  align-items: baseline;
+  gap: 1.5mm;
 }
 .slip-mswd-intake .slip-intake-demo-row .item-label {
   font-size: 6pt;
   font-weight: 700;
   text-transform: uppercase;
   white-space: nowrap;
-  margin-bottom: 0.5mm;
+  flex-shrink: 0;
 }
 .slip-mswd-intake .slip-intake-demo-row .item-value {
   border-bottom: 1.2px solid #000;
-  min-width: 16mm;
-  min-height: 5.5mm;
+  min-width: 14mm;
+  min-height: 4.5mm;
   font-size: 7.5pt;
   font-weight: 700;
-  padding: 0 1mm 0.5mm;
-  display: block;
+  padding: 0 1mm 0;
+  display: flex;
+  align-items: flex-end;
+  padding-bottom: 0;
+  line-height: 1;
+  letter-spacing: 0;
 }
-/* Stretch items that need more space */
-.slip-mswd-intake .slip-intake-demo-row .item.stretch { flex: 1; }
+/* Stretch items fill remaining space */
+.slip-mswd-intake .slip-intake-demo-row .item.stretch { flex: 1; min-width: 0; }
 .slip-mswd-intake .slip-intake-demo-row .item.stretch .item-value { width: 100%; }
 
 /* ── Civil status checkboxes ── */
@@ -908,10 +1034,9 @@ select { cursor: pointer; }
   display: flex;
   gap: 3mm;
   flex-wrap: wrap;
-  padding-bottom: 0.5mm;
-  border-bottom: 1.2px solid #000;
   min-height: 5.5mm;
-  align-items: center;
+  align-items: flex-end;
+  padding-bottom: 0;
 }
 .civil-option {
   display: flex;
@@ -964,7 +1089,30 @@ select { cursor: pointer; }
 }
 .dob-unit .field-value {
   text-align: center;
-  padding: 0 1mm 0.5mm;
+  padding: 0 1mm 0;
+  padding-bottom: 0;
+  justify-content: center;
+  align-items: flex-end;
+}
+
+/* For autofilled NAME / ADDRESS / DOB boxes, draw the underline with a pseudo-element
+   so the line hugs the text more closely and looks seamless in print */
+.slip-mswd-intake .slip-intake-name-box .field-value,
+.slip-mswd-intake .slip-intake-addr-box .field-value,
+.dob-unit .field-value {
+  position: relative;
+  border-bottom: none;
+  padding-bottom: 1mm;
+}
+.slip-mswd-intake .slip-intake-name-box .field-value::after,
+.slip-mswd-intake .slip-intake-addr-box .field-value::after,
+.dob-unit .field-value::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-bottom: 1px solid #000;
 }
 .dob-mm  .field-value { min-width: 8mm;  }
 .dob-dd  .field-value { min-width: 8mm;  }
@@ -972,19 +1120,23 @@ select { cursor: pointer; }
 
 /* ── Family composition section ── */
 .slip-mswd-intake .family-section { margin-top: 2mm; }
-.slip-mswd-intake .family-instruction-1 {
-  font-size: 7.5pt;
-  font-weight: 800;
-  text-transform: uppercase;
-  margin-bottom: 0.5mm;
-}
-.slip-mswd-intake .family-instruction-2 {
-  font-size: 7.5pt;
-  font-weight: 800;
-  text-transform: uppercase;
+
+/* Inline header row: instructions + Family Composition label on same line */
+.family-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 3mm;
   margin-bottom: 1.5mm;
 }
-.slip-mswd-intake .family-instruction-2 span { color: #b91c1c; font-weight: 900; }
+.family-instructions {
+  font-size: 7pt;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+.family-instruction-1 { font-size: 7pt; font-weight: 800; }
+.family-instruction-2 { font-size: 7pt; font-weight: 800; }
+.red-text { color: #b91c1c; font-weight: 900; }
 
 /* Family label box */
 .family-comp-label {
@@ -1045,11 +1197,7 @@ select { cursor: pointer; }
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  padding-bottom: 0.5mm;
-}
-
-/* ── @media print overrides (ensure sizes hold when printing) ── */
-@media print {
-  .slip-mswd-intake .slip-intake-table td { height: 8mm !important; }
-  .slip-mswd-intake .slip-intake-footer .foot-line { min-height: 7mm !important; }
+  padding-bottom: 0;
+  line-height: 1;
+  letter-spacing: 0;
 }

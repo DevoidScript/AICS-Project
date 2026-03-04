@@ -538,7 +538,8 @@ function capitalizeFormData(data) {
   for (var key in data) {
     if (data.hasOwnProperty(key)) {
       var v = data[key];
-      out[key] = (key === "age" || key === "dob" || typeof v !== "string") ? v : v.toUpperCase();
+      var skipUppercase = ["age", "dob", "fourPsStatus", "civilStatus"];
+      out[key] = (skipUppercase.indexOf(key) !== -1 || typeof v !== "string") ? v : v.toUpperCase();
     }
   }
   var last = out.claimantLastName || "";
@@ -599,10 +600,23 @@ function sendToSheet(data) {
       date: data.date,
       patientName: data.patientName,
       address: data.address,
+      age: data.age,
+      dob: data.dob,
+      sex: data.sex,
+      civilStatus: data.civilStatus,
+      educationalAttainment: data.educationalAttainment,
+      occupation: data.occupation,
+      fourPsStatus: data.fourPsStatus,
+      addrNumber: data.addrNumber,
+      addrStreet: data.addrStreet,
+      addrBarangay: data.addrBarangay,
+      addrMunicipality: data.addrMunicipality,
+      addrProvince: data.addrProvince,
       contactNumber: data.contactNumber || "",
       claimantLastName: data.claimantLastName,
       claimantFirstName: data.claimantFirstName,
       claimantMiddleName: data.claimantMiddleName,
+      claimant: data.claimant,
       typeOfAssistance: data.typeOfAssistance,
       code: data.code,
       remark: data.remark,
@@ -718,10 +732,9 @@ function getSlipHtml(data) {
 
       "<div class='mswd-slip-body'>" +
 
-        // Transaction strip
+        // Transaction strip — Date removed (already shown in PETSA footer)
         "<div class='slip-intake-txn-row'>" +
           "<span>Transaction No.: " + (data.idNumber || "") + "</span>" +
-          "<span>Date: " + (formatDate(data.date) || "").toUpperCase() + "</span>" +
           "<span>Type: " + (data.typeOfAssistance || "") + "</span>" +
         "</div>" +
 
@@ -754,15 +767,15 @@ function getSlipHtml(data) {
 
         // ── ROW 1: Edad / Sex / Civil Status ──
         "<div class='slip-intake-demo-row'>" +
-          "<div class='item'>" +
+          "<div class='item inline'>" +
             "<span class='item-label'>Edad:</span>" +
-            "<div class='item-value slip-center' style='min-width:12mm'>" + (data.age || "") + "</div>" +
+            "<div class='item-value slip-center' style='min-width:10mm'>" + (data.age || "") + "</div>" +
           "</div>" +
-          "<div class='item'>" +
+          "<div class='item inline'>" +
             "<span class='item-label'>Sex:</span>" +
-            "<div class='item-value slip-center' style='min-width:16mm'>" + (data.sex || "") + "</div>" +
+            "<div class='item-value slip-center' style='min-width:14mm'>" + (data.sex || "") + "</div>" +
           "</div>" +
-          "<div class='item stretch'>" +
+          "<div class='item inline stretch'>" +
             "<span class='item-label'>Civil Status:</span>" +
             civilHtml +
           "</div>" +
@@ -770,44 +783,48 @@ function getSlipHtml(data) {
 
         // ── ROW 2: Educational Attainment / Occupation ──
         "<div class='slip-intake-demo-row'>" +
-          "<div class='item stretch'>" +
+          "<div class='item inline stretch'>" +
             "<span class='item-label'>Educational Attainment:</span>" +
-            "<div class='item-value' style='min-width:60mm'>" + (data.educationalAttainment || "") + "</div>" +
+            "<div class='item-value' style='min-width:50mm'>" + (data.educationalAttainment || "") + "</div>" +
           "</div>" +
-          "<div class='item stretch'>" +
+          "<div class='item inline stretch'>" +
             "<span class='item-label'>Occupation:</span>" +
-            "<div class='item-value' style='min-width:50mm'>" + (data.occupation || "") + "</div>" +
+            "<div class='item-value' style='min-width:40mm'>" + (data.occupation || "") + "</div>" +
           "</div>" +
         "</div>" +
 
         // ── ROW 3: Date of Birth / Contact No. / 4Ps ──
         "<div class='slip-intake-demo-row'>" +
-          "<div class='item'>" +
+          "<div class='item inline'>" +
             "<span class='item-label'>Date of Birth:</span>" +
             dobHtml +
           "</div>" +
-          "<div class='item stretch'>" +
+          "<div class='item inline'>" +
             "<span class='item-label'>Contact No.:</span>" +
-            "<div class='item-value' style='min-width:40mm'>" + (data.contactNumber || "") + "</div>" +
+            "<div class='item-value' style='min-width:26mm'>" + (data.contactNumber || "") + "</div>" +
           "</div>" +
           fpsHtml +
         "</div>" +
 
         // ── FAMILY COMPOSITION ──
         "<div class='family-section'>" +
-          "<div class='family-instruction-1'>Tanan Nga Upod Sa Panimalay Sang Naga Process/Claimant</div>" +
-          "<div class='family-instruction-2'>Ilakip Ang Benepisyaryo <span>(Pasyente / Napatay)</span></div>" +
-          "<div class='family-comp-label'>Family Composition:</div>" +
+          "<div class='family-header-row'>" +
+            "<div class='family-instructions'>" +
+              "<span class='family-instruction-1'>Tanan Nga Upod Sa Panimalay Sang Naga Process/Claimant &mdash; </span>" +
+              "<span class='family-instruction-2'>Ilakip Ang Benepisyaryo <span class='red-text'>(Pasyente / Napatay)</span></span>" +
+            "</div>" +
+            "<div class='family-comp-label'>Family Composition:</div>" +
+          "</div>" +
           "<table class='slip-intake-table'>" +
             "<thead>" +
               "<tr>" +
                 "<th colspan='3'>NAME</th>" +
                 "<th rowspan='2'>AGE</th><th rowspan='2'>SEX</th><th rowspan='2'>CIVIL STATUS</th>" +
-                "<th rowspan='2'>RELATIONSHIP</th><th rowspan='2'>EDUC. ATTAINMENT</th><th rowspan='2'>OCCUPATION</th>" +
+                "<th rowspan='2'>RELATIONSHIP</th><th rowspan='2'>EDUCATIONAL ATTAINMENT</th><th rowspan='2'>OCCUPATION</th>" +
               "</tr>" +
               "<tr>" +
                 "<th style='width:18%'>FIRST NAME</th>" +
-                "<th style='width:12%'>MIDDLE INIT.</th>" +
+                "<th style='width:12%'>MIDDLE INITIAL</th>" +
                 "<th style='width:18%'>LAST NAME</th>" +
               "</tr>" +
             "</thead>" +
@@ -1075,11 +1092,19 @@ function doSubmit(data) {
 
 document.getElementById("printBtn").addEventListener("click", function() {
   var pa = document.getElementById("printable-area");
-  if (pa) {
-    pa.style.display = "block";
-    window.print();
-    setTimeout(function() { pa.style.display = "none"; }, 1500);
+  if (!pa) return;
+  pa.style.display = "block";
+  // Use afterprint event to re-hide cleanly; fallback to setTimeout
+  var done = false;
+  function afterPrint() {
+    if (done) return;
+    done = true;
+    pa.style.display = "none";
+    window.removeEventListener("afterprint", afterPrint);
   }
+  window.addEventListener("afterprint", afterPrint);
+  setTimeout(afterPrint, 3000); // fallback
+  window.print();
 });
 
 document.getElementById("downloadPdf").addEventListener("click", downloadAsPDF);
