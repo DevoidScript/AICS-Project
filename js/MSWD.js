@@ -182,7 +182,11 @@ function setStoredTransactionNumber(value, isPending) {
       if (value) removePendingTxn(value);
     }
   }
-  if (value) localStorage.setItem(STORAGE_KEY_TXN, value);
+  if (value) {
+    localStorage.setItem(STORAGE_KEY_TXN, value);
+  } else {
+    localStorage.removeItem(STORAGE_KEY_TXN);
+  }
 }
 
 function getStoredTransactionNumber() {

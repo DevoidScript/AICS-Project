@@ -222,8 +222,8 @@ select { cursor: pointer; }
 #pdf-preview .slip-card {
   border: 2px solid #000;
   border-radius: 0;
-  padding: 0 4mm 3mm;
-  width: 148.5mm;
+  padding: 0 5mm 5mm;
+  width: 7.8in;
   max-width: 100%;
   margin: 0 auto;
   font-family: Arial, Helvetica, sans-serif;
@@ -231,34 +231,37 @@ select { cursor: pointer; }
   background: #fff;
   overflow: hidden;
   box-sizing: border-box;
-  transform: scale(0.8);
+  transform: scale(0.75);
   transform-origin: top center;
 }
 #pdf-preview .slip-header {
-  margin: 0 -4mm 0;
+  margin: 0 -5mm 0 -5mm;
   padding: 0;
   border-bottom: 1.5px solid #000;
   line-height: 0;
   border-radius: 0;
+  max-height: 45mm;
+  overflow: hidden;
 }
 #pdf-preview .slip-header-img {
   width: 100%;
   height: auto;
   display: block;
   object-fit: cover;
-  object-position: top center;
+  object-position: center;
   image-rendering: auto;
   image-rendering: high-quality;
+  max-height: 45mm;
 }
 #pdf-preview .slip-title {
-  font-size: 10pt;
+  font-size: 12pt;
   font-weight: 800;
   text-align: center;
   text-transform: uppercase;
   letter-spacing: -0.02em;
   line-height: 1.2;
-  padding: 2mm 0 2.5mm;
-  margin: 0 -4mm 1.5mm;
+  padding: 3mm 0 3mm;
+  margin: 0 -5mm 2mm;
   border-bottom: 1.5px solid #000;
   white-space: nowrap;
 }
@@ -268,7 +271,7 @@ select { cursor: pointer; }
 #pdf-preview .slip-field {
   display: flex;
   align-items: flex-end;
-  margin-bottom: 1.5mm;
+  margin-bottom: 2mm;
   gap: 1mm;
   page-break-inside: avoid;
 }
@@ -276,13 +279,13 @@ select { cursor: pointer; }
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  font-size: 8pt;
+  font-size: 9.5pt;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.02em;
   white-space: nowrap;
-  width: 32mm;
-  min-width: 32mm;
+  width: 35mm;
+  min-width: 35mm;
   flex-shrink: 0;
   padding-bottom: 0.5px;
   line-height: 1.15;
@@ -296,11 +299,11 @@ select { cursor: pointer; }
 }
 #pdf-preview .slip-value {
   flex: 1;
-  font-size: 8pt;
+  font-size: 9.5pt;
   border-bottom: 1px solid #000;
   padding-bottom: 0.5px;
   padding-left: 1mm;
-  min-height: 9pt;
+  min-height: 11pt;
   line-height: 1.15;
   word-break: break-word;
   text-transform: uppercase;
@@ -355,8 +358,9 @@ select { cursor: pointer; }
   text-transform: uppercase;
   letter-spacing: 0.03em;
   color: #333;
-  margin-top: 0;
-  line-height: 1.1;
+  margin-top: 0.5mm;
+  line-height: 1;
+  white-space: nowrap;
 }
 .preview-doc-header { text-align: center; margin-bottom: 20px; padding-bottom: 14px; border-bottom: 2px solid var(--accent); }
 .preview-doc-header h2 { font-family: 'Playfair Display', serif; font-size: 1.15rem; color: var(--accent); }
@@ -384,19 +388,19 @@ select { cursor: pointer; }
 /* ===========================================
    PRINT STYLES — slip layout like a visitor pass
    Only #printable-area is shown when printing.
-   Receipt size: A4 cut crosswise, inserted portrait (148.5mm x 210mm)
+   Receipt size: Legal (8.5in x 14in)
    =========================================== */
 @media print {
   @page { 
     margin: 0;
-    size: A4; /* 210mm x 297mm */
+    size: legal; /* 8.5in x 14in */
   }
   html, body {
     margin: 0 !important;
     padding: 0 !important;
-    width: 210mm !important;
-    height: auto !important;
-    overflow: visible !important;
+    width: 8.5in !important;
+    height: 14in !important;
+    overflow: hidden !important;
     background: #fff !important;
   }
 
@@ -417,25 +421,28 @@ select { cursor: pointer; }
   #printable-area {
     display: block !important;
     position: static !important;
-    width: 210mm !important;
+    width: 8.5in !important;
+    height: 14in !important;
     margin: 0 !important;
     padding: 0 !important;
     font-family: Arial, Helvetica, sans-serif;
     color: #000;
     background: #fff;
+    page-break-after: avoid;
   }
 
   /* Outer card — for assistance-form slip */
   .slip-card {
     border: 2px solid #000;
     border-radius: 0;
-    padding: 0 4mm 3mm;
-    width: 148.5mm;
+    padding: 0 5mm 5mm;
+    width: 7.8in;
     max-width: 100%;
     height: auto;
-    margin: 5mm auto 0;
+    margin: 0.3in auto 0;
     overflow: hidden;
     box-sizing: border-box;
+    page-break-after: avoid;
   }
 
   /* ── MSWD slip container — flush to top, full A4 width ── */
@@ -457,20 +464,24 @@ select { cursor: pointer; }
     border-bottom: 1.5px solid #000;
     line-height: 0;
   }
-  .slip-mswd-intake .slip-header-img { width: 100%; display: block; height: auto; }
+  .slip-mswd-intake .slip-header-img { width: 100%; display: block; height: auto; object-fit: contain; }
 
   /* Header: full-width image extending to border, no side gaps */
   .slip-header {
-    margin: 0;
+    margin: 0 -5mm 0 -5mm;
     padding: 0;
     border-bottom: 1.5px solid #000;
     line-height: 0;
     border-radius: 0;
+    max-height: 45mm;
+    overflow: hidden;
   }
   .slip-header-img {
     width: 100%;
     height: auto;
     display: block;
+    object-fit: cover;
+    max-height: 45mm;
   }
 
   /* Compact title strip */
@@ -488,7 +499,7 @@ select { cursor: pointer; }
   .slip-mswd-intake .slip-intake-label { font-size: 6.5pt !important; margin-bottom: 0.5mm !important; }
 
   /* Compact field values */
-  .field-value { min-height: 4.5mm !important; font-size: 7.5pt !important; }
+  .field-value { min-height: 4.5mm !important; font-size: 7.5pt !important; align-items: center !important; }
   .field-sublabel { font-size: 5pt !important; margin-top: 0 !important; }
 
   /* Name row */
@@ -514,16 +525,15 @@ select { cursor: pointer; }
     padding: 0 0.5mm 0 !important;
     display: flex !important;
     align-items: flex-end !important;
-    padding-bottom: 0 !important;
-    line-height: 1 !important;
+    padding-bottom: 0.2mm !important;
   }
   .civil-status-group { 
     min-height: 4mm !important; 
     gap: 2mm !important; 
     flex-wrap: nowrap !important; 
     align-items: flex-end !important;
-    border-bottom: none !important;
-    padding-bottom: 0 !important;
+    border-bottom: 1.2px solid #000 !important;
+    padding-bottom: 0.5mm !important;
   }
   .civil-option { font-size: 6pt !important; }
   .checkbox-sq { width: 2.8mm !important; height: 2.8mm !important; font-size: 6.5pt !important; }
@@ -570,31 +580,30 @@ select { cursor: pointer; }
   .slip-field { margin-bottom: 1mm; gap: 1mm; }
   .slip-label { font-size: 7.5pt; width: 30mm; min-width: 30mm; }
   .slip-value { font-size: 7.5pt; }
-  .slip-signature { margin-top: 3mm; padding-top: 2mm; border-top: 1px solid #000; }
 }
 
   /* "ASSISTANCE TO INDIVIDUALS IN CRISIS SITUATIONS" — single line, full width */
   .slip-title {
-    font-size: 10pt;
+    font-size: 12pt;
     font-weight: 800;
     text-align: center;
     text-transform: uppercase;
     letter-spacing: -0.02em;
     line-height: 1.2;
-    padding: 2mm 0 2.5mm;
-    margin: 0 -4mm 1.5mm;
+    padding: 3mm 0 3mm;
+    margin: 0 -5mm 2mm;
     border-bottom: 1.5px solid #000;
     white-space: nowrap;
   }
 
-  /* Body: label : value — 8pt, tighter spacing */
+  /* Body: label : value — larger for legal size */
   .slip-body {
     margin-bottom: 0;
   }
   .slip-field {
     display: flex;
     align-items: flex-end;
-    margin-bottom: 1.5mm;
+    margin-bottom: 2mm;
     gap: 1mm;
     page-break-inside: avoid;
   }
@@ -602,13 +611,13 @@ select { cursor: pointer; }
     display: flex;
     justify-content: space-between;
     align-items: baseline;
-    font-size: 8pt;
+    font-size: 9.5pt;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.02em;
     white-space: nowrap;
-    width: 32mm;
-    min-width: 32mm;
+    width: 35mm;
+    min-width: 35mm;
     flex-shrink: 0;
     padding-bottom: 0.5px;
     line-height: 1.15;
@@ -622,11 +631,11 @@ select { cursor: pointer; }
   }
   .slip-value {
     flex: 1;
-    font-size: 8pt;
+    font-size: 9.5pt;
     border-bottom: 1px solid #000;
     padding-bottom: 0.5px;
     padding-left: 1mm;
-    min-height: 9pt;
+    min-height: 11pt;
     line-height: 1.15;
     word-break: break-word;
     text-transform: uppercase;
@@ -662,31 +671,32 @@ select { cursor: pointer; }
 
   /* Signature: name ON the underline, label below */
   .slip-signature {
-    margin-top: 4%;
-    padding-top: 0;
+    margin-top: 5mm;
+    padding-top: 2mm;
     width: 100%;
     box-sizing: border-box;
   }
   .slip-signature-inner {
-    width: 50mm;
+    width: 60mm;
     margin-left: auto;
     margin-right: auto;
   }
   .slip-signature-line {
     border-bottom: 1px solid #000;
-    font-size: 8pt;
+    font-size: 9.5pt;
     text-align: center;
     padding-bottom: 0;
     line-height: 1;
   }
   .slip-signature-label {
-    font-size: 7pt;
+    font-size: 8pt;
     text-align: center;
     text-transform: uppercase;
     letter-spacing: 0.03em;
     color: #333;
-    margin-top: 0;
-    line-height: 1.1;
+    margin-top: 0.5mm;
+    line-height: 1;
+    white-space: nowrap;
   }
 
   /* MSWD Intake Sheet layout blocks (inside mswd-slip-body) */
@@ -763,8 +773,6 @@ select { cursor: pointer; }
     display: inline-block;
     width: 100%;
     box-sizing: border-box;
-    line-height: 1;
-    letter-spacing: 0;
   }
   .slip-mswd-intake .field-sublabel {
     font-size: 6pt;
@@ -821,9 +829,7 @@ select { cursor: pointer; }
   font-size: 6.5pt;
   padding: 0 0.5mm 0.2mm;
   text-align: center;
-  line-height: 1;
-  padding-bottom: 0;
-  letter-spacing: 0;
+  line-height: 1.05;
 }
 #pdf-preview .slip-intake-table { width: 100%; border-collapse: collapse; font-size: 6pt; margin: 2mm 0; }
 #pdf-preview .slip-intake-table th { background: #c9a227; color: #000; font-weight: 700; padding: 1mm 0.5mm; text-align: center; border: 1px solid #000; }
@@ -846,8 +852,6 @@ select { cursor: pointer; }
   display: inline-block;
   width: 100%;
   box-sizing: border-box;
-  line-height: 1;
-  letter-spacing: 0;
 }
 #pdf-preview .slip-mswd-intake .field-sublabel {
   font-size: 6pt;
@@ -947,16 +951,14 @@ select { cursor: pointer; }
   padding: 0 1mm 0;
   display: flex;
   align-items: flex-end;
-  padding-bottom: 0;
-  line-height: 1;
-  letter-spacing: 0;
+  padding-bottom: 0.5mm;
 }
 .field-sublabel {
   font-size: 5.5pt;
   color: #555;
   display: block;
   text-align: center;
-  margin-top: 0.5mm;
+  margin-top: 0;
   font-style: italic;
 }
 .slip-center { 
@@ -1020,10 +1022,9 @@ select { cursor: pointer; }
   font-weight: 700;
   padding: 0 1mm 0;
   display: flex;
-  align-items: flex-end;
-  padding-bottom: 0;
-  line-height: 1;
-  letter-spacing: 0;
+  align-items: center;
+  padding-bottom: 0.2mm;
+  line-height: 1.2;
 }
 /* Stretch items fill remaining space */
 .slip-mswd-intake .slip-intake-demo-row .item.stretch { flex: 1; min-width: 0; }
@@ -1034,9 +1035,11 @@ select { cursor: pointer; }
   display: flex;
   gap: 3mm;
   flex-wrap: wrap;
+  padding-bottom: 0;
+  border-bottom: 1.2px solid #000;
   min-height: 5.5mm;
   align-items: flex-end;
-  padding-bottom: 0;
+  padding-bottom: 0.5mm;
 }
 .civil-option {
   display: flex;
@@ -1090,29 +1093,8 @@ select { cursor: pointer; }
 .dob-unit .field-value {
   text-align: center;
   padding: 0 1mm 0;
-  padding-bottom: 0;
+  padding-bottom: 0.5mm;
   justify-content: center;
-  align-items: flex-end;
-}
-
-/* For autofilled NAME / ADDRESS / DOB boxes, draw the underline with a pseudo-element
-   so the line hugs the text more closely and looks seamless in print */
-.slip-mswd-intake .slip-intake-name-box .field-value,
-.slip-mswd-intake .slip-intake-addr-box .field-value,
-.dob-unit .field-value {
-  position: relative;
-  border-bottom: none;
-  padding-bottom: 1mm;
-}
-.slip-mswd-intake .slip-intake-name-box .field-value::after,
-.slip-mswd-intake .slip-intake-addr-box .field-value::after,
-.dob-unit .field-value::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  border-bottom: 1px solid #000;
 }
 .dob-mm  .field-value { min-width: 8mm;  }
 .dob-dd  .field-value { min-width: 8mm;  }
@@ -1197,7 +1179,5 @@ select { cursor: pointer; }
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  padding-bottom: 0;
-  line-height: 1;
-  letter-spacing: 0;
+  padding-bottom: 0.5mm;
 }

@@ -1,13 +1,12 @@
-var ALLOWED_TOKEN = "REPLACE_WITH_YOUR_SECRET_TOKEN";
-
+var ALLOWED_TOKEN = "9472418d6b1d85c7492fc89f6cc199cbef3f2f2fe8d3fe35a677c31efa0778d1";
 /**
  * Returns the active sheet or an error message. Use this to guard against null spreadsheet/sheet.
  * @returns {{ sheet: Sheet | null, error: string | null }}
  */
 function getSheetOrError() {
   try {
-    var ss = SpreadsheetApp.getActiveSpreadsheet();
-    if (!ss) return { sheet: null, error: "No spreadsheet available." };
+      var ss = SpreadsheetApp.getActiveSpreadsheet();
+      if (!ss) return { sheet: null, error: "No spreadsheet available." };
     var sheet = ss.getActiveSheet();
     if (!sheet) return { sheet: null, error: "No sheet available." };
     return { sheet: sheet, error: null };
